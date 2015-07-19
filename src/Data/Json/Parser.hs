@@ -8,7 +8,18 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
-module Data.Json.Parser where
+module Data.Json.Parser
+    ( -- * Parsing from different types
+      parseJsonBs, parseJsonBsl, parseJsonT
+      -- * Description how to parse JSON to a Haskell type
+    , JsonReadable(..)
+      -- * DSL to easily create parser for custom Haskell types
+    , runSpec, ObjSpec(..)
+    , TypedKey, reqKey, optKey
+      -- * Low level JSON parsing helpers
+    , readObject, WrappedValue(..), getValueByKey, getOptValueByKey
+    )
+where
 
 import Control.Applicative
 import Control.Monad
@@ -26,18 +37,24 @@ import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 
+-- | Parse json from a strict 'BS.ByteString'
 parseJsonBs :: JsonReadable t => BS.ByteString -> Either String t
 parseJsonBs = parseOnly (readJson <* skipSpace <* endOfInput)
 {-# INLINE parseJsonBs #-}
 
+-- | Parse json from a lazy 'BSL.ByteString'
 parseJsonBsl :: JsonReadable t => BSL.ByteString -> Either String t
 parseJsonBsl = parseJsonBs . BSL.toStrict
 {-# INLINE parseJsonBsl #-}
 
+-- | Parse json from a strict 'T.Text'
 parseJsonT :: JsonReadable t => T.Text -> Either String t
 parseJsonT = parseJsonBs . T.encodeUtf8
 {-# INLINE parseJsonT #-}
 
+-- | Typeclass defining an attoparsec 'Parser' how Haskell types should
+-- be parsed from JSON. Use predifined instances (with 'readJson') and
+-- 'runSpec' (on 'ObjSpec') to define instances for custom types
 class JsonReadable t where
     readJson :: Parser t
 
@@ -125,9 +142,11 @@ readEither =
     Left <$> readJson <|> Right <$> readJson
 {-# INLINE readEither #-}
 
+-- | A value that is 'Typeable' and 'JsonReadable'
 data WrappedValue
    = forall t. (Typeable t, JsonReadable t) => WrappedValue t
 
+-- | Parse a json object given a value parser for each key
 readObject :: (T.Text -> Maybe (Parser WrappedValue)) -> Parser (HM.HashMap T.Text WrappedValue)
 readObject getKeyParser =
     do skipSpace
@@ -146,6 +165,7 @@ readObject getKeyParser =
                Just parser -> Just <$> ((,) <$> pure k <*> parser)
 {-# INLINE readObject #-}
 
+-- | Get a value out of the map returned by 'readObject'
 getValueByKey :: (Monad m, Typeable t) => T.Text -> HM.HashMap T.Text WrappedValue -> m t
 getValueByKey key hm =
     do optVal <- getOptValueByKey key hm
@@ -154,6 +174,7 @@ getValueByKey key hm =
          Just val -> return val
 {-# INLINE getValueByKey #-}
 
+-- | Optionally get a value out of the map returned by 'readObject'
 getOptValueByKey :: (Monad m, Typeable t) => T.Text -> HM.HashMap T.Text WrappedValue -> m (Maybe t)
 getOptValueByKey key hm =
     case HM.lookup key hm of
@@ -167,12 +188,15 @@ getOptValueByKey key hm =
 type KeyReader t =
     Monad m => T.Text -> HM.HashMap T.Text WrappedValue -> m t
 
+-- | Json object key to a value t
 data TypedKey t =
     TypedKey (KeyReader t) T.Text
 
+-- | Required json object key. Use 'IsString' instance for automatic choice
 reqKey :: Typeable t => T.Text -> TypedKey t
 reqKey = TypedKey getValueByKey
 
+-- | Optional json object key. Use 'IsString' instance for automatic choice
 optKey :: Typeable t => T.Text -> TypedKey (Maybe t)
 optKey =
     TypedKey optGetter
@@ -187,6 +211,8 @@ instance Typeable t => IsString (TypedKey (Maybe t)) where
 instance Typeable t => IsString (TypedKey t) where
     fromString = reqKey . T.pack
 
+-- | List of 'TypedKey's, should be in the same order as your
+-- constructor in 'runSpec' will expect them
 data ObjSpec (ts :: [*]) where
     ObjSpecNil :: ObjSpec '[]
     (:&&:) :: (JsonReadable t, Typeable t) => TypedKey t -> ObjSpec ts -> ObjSpec (t ': ts)
@@ -210,6 +236,8 @@ compileSpec ((TypedKey keyReader key :: TypedKey t) :&&: xs) =
            else nextParserFun lookupKey
        )
 
+-- | Convert an 'ObjSpec' into a 'Parser' provided a constructor
+-- function
 runSpec :: HVectElim ts x -> ObjSpec ts -> Parser x
 runSpec mkVal spec =
     do let (mkTyVect, kv) = compileSpec spec
