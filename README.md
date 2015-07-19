@@ -28,7 +28,8 @@ data SomeDummy
 
 instance JsonReadable SomeDummy where
     readJson =
-       runSpec SomeDummy $ "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
+       runSpec SomeDummy $
+          "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
 
 test =
     parseJsonBs "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"either\": false}"
