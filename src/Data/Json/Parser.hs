@@ -244,22 +244,3 @@ runSpec mkVal spec =
        hm <- readObject kv
        vect <- mkTyVect hm
        return $! uncurry mkVal vect
-
--- example:
-
-data SomeDummy
-   = SomeDummy
-   { sd_int :: Int
-   , sd_bool :: Bool
-   , sd_text :: T.Text
-   , sd_either :: Either Bool T.Text
-   , sd_maybe :: Maybe Int
-   } deriving (Show)
-
-instance JsonReadable SomeDummy where
-    readJson =
-        runSpec SomeDummy $ "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
-
-testSomeDummy :: Either String SomeDummy
-testSomeDummy =
-    parseJsonBs "{\"int\": 34, \"bool\": true, \"text\": \"Teext\", \"either\": false}"
