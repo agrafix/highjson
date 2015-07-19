@@ -25,15 +25,17 @@ import Control.Applicative
 import Control.Monad
 import Data.Attoparsec.ByteString.Char8
 import Data.HVect
+import Data.Int
 import Data.Maybe
 import Data.Scientific hiding (scientific)
 import Data.String
 import Data.Typeable
+import Data.Word
 import Prelude hiding (uncurry)
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 
@@ -105,16 +107,42 @@ readDouble = liftM toRealFloat readJson
 {-# INLINE readDouble #-}
 
 instance JsonReadable Int where
-    readJson = readInt
+    readJson = readBoundedInteger
 
+instance JsonReadable Int8 where
+    readJson = readBoundedInteger
 
-readInt :: Parser Int
-readInt =
-    do mRes <- liftM toBoundedInteger readJson
-       case mRes of
-         Nothing -> fail "input is not an integer"
-         Just val -> return val
-{-# INLINE readInt #-}
+instance JsonReadable Int16 where
+    readJson = readBoundedInteger
+
+instance JsonReadable Int32 where
+    readJson = readBoundedInteger
+
+instance JsonReadable Int64 where
+    readJson = readBoundedInteger
+
+instance JsonReadable Word where
+    readJson = readBoundedInteger
+
+instance JsonReadable Word8 where
+    readJson = readBoundedInteger
+
+instance JsonReadable Word16 where
+    readJson = readBoundedInteger
+
+instance JsonReadable Word32 where
+    readJson = readBoundedInteger
+
+instance JsonReadable Word64 where
+    readJson = readBoundedInteger
+
+readBoundedInteger :: (Integral i, Bounded i) => Parser i
+readBoundedInteger =
+     do mRes <- liftM toBoundedInteger readJson
+        case mRes of
+          Nothing -> fail "input is not a bounded integer"
+          Just val -> return val
+{-# INLINE readBoundedInteger #-}
 
 instance JsonReadable T.Text where
     readJson = readText
