@@ -31,7 +31,7 @@ import Data.Scientific hiding (scientific)
 import Data.String
 import Data.Typeable
 import Data.Word
-import Prelude hiding (uncurry)
+import Prelude hiding (uncurry, take)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.HashMap.Strict as HM
@@ -70,7 +70,7 @@ readJList :: JsonReadable t => Parser [t]
 readJList =
     do skipSpace
        char '['
-       vals <- readJson `sepBy` (skipSpace >> char ',')
+       vals <- readJson `sepBy'` (skipSpace >> char ',')
        skipSpace
        char ']'
        return vals
@@ -167,10 +167,14 @@ readText =
 instance JsonReadable t => JsonReadable (Maybe t) where
     readJson = readMaybe
 
+readNull :: Parser ()
+readNull = () <$ string "null"
+{-# INLINE readNull #-}
+
 readMaybe :: JsonReadable t => Parser (Maybe t)
 readMaybe =
     do skipSpace
-       Nothing <$ string "null" <|> Just <$> readJson
+       Nothing <$ readNull <|> Just <$> readJson
 {-# INLINE readMaybe #-}
 
 instance (JsonReadable a, JsonReadable b) => JsonReadable (Either a b) where
@@ -190,7 +194,7 @@ readObject :: (T.Text -> Maybe (Parser WrappedValue)) -> Parser (HM.HashMap T.Te
 readObject getKeyParser =
     do skipSpace
        char '{'
-       vals <- parseKv `sepBy` (skipSpace >> char ',')
+       vals <- parseKv `sepBy'` (skipSpace >> char ',')
        skipSpace
        char '}'
        skipSpace
@@ -202,7 +206,7 @@ readObject getKeyParser =
              char ':'
              case getKeyParser k of
                Nothing ->
-                   do () <$ readObject (const Nothing) <|> () <$ readBool <|> () <$ readText <|> () <$ string "null" <|> () <$ (skipSpace >> scientific)
+                   do () <$ readObject (const Nothing) <|> () <$ readBool <|> () <$ readText <|> () <$ readNull <|> () <$ (skipSpace >> scientific)
                       return Nothing
                Just parser -> Just <$> ((,) <$> pure k <*> parser)
 {-# INLINE readObject #-}
