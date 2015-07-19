@@ -193,6 +193,7 @@ readObject getKeyParser =
        vals <- parseKv `sepBy` (skipSpace >> char ',')
        skipSpace
        char '}'
+       skipSpace
        return $! HM.fromList (catMaybes vals)
     where
       parseKv =
@@ -200,7 +201,9 @@ readObject getKeyParser =
              skipSpace
              char ':'
              case getKeyParser k of
-               Nothing -> return Nothing
+               Nothing ->
+                   do () <$ readObject (const Nothing) <|> () <$ readBool <|> () <$ readText <|> () <$ string "null" <|> () <$ (skipSpace >> scientific)
+                      return Nothing
                Just parser -> Just <$> ((,) <$> pure k <*> parser)
 {-# INLINE readObject #-}
 
