@@ -144,7 +144,7 @@ readEither =
 
 -- | A value that is 'Typeable' and 'JsonReadable'
 data WrappedValue
-   = forall t. (Typeable t, JsonReadable t) => WrappedValue t
+   = forall t. (Typeable t, JsonReadable t) => WrappedValue !t
 
 -- | Parse a json object given a value parser for each key
 readObject :: (T.Text -> Maybe (Parser WrappedValue)) -> Parser (HM.HashMap T.Text WrappedValue)
@@ -190,7 +190,7 @@ type KeyReader t =
 
 -- | Json object key to a value t
 data TypedKey t =
-    TypedKey (KeyReader t) T.Text
+    TypedKey !(KeyReader t) !T.Text
 
 -- | Required json object key. Use 'IsString' instance for automatic choice
 reqKey :: Typeable t => T.Text -> TypedKey t
@@ -215,7 +215,7 @@ instance Typeable t => IsString (TypedKey t) where
 -- constructor in 'runSpec' will expect them
 data ObjSpec (ts :: [*]) where
     ObjSpecNil :: ObjSpec '[]
-    (:&&:) :: (JsonReadable t, Typeable t) => TypedKey t -> ObjSpec ts -> ObjSpec (t ': ts)
+    (:&&:) :: (JsonReadable t, Typeable t) => !(TypedKey t) -> !(ObjSpec ts) -> ObjSpec (t ': ts)
 
 infixr 5 :&&:
 
