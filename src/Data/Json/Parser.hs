@@ -22,8 +22,19 @@ import Data.Typeable
 import Prelude hiding (uncurry)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
+
+parseJsonBs :: JsonReadable t => BS.ByteString -> Either String t
+parseJsonBs = parseOnly (readJson <* skipSpace <* endOfInput)
+
+parseJsonBsl :: JsonReadable t => BSL.ByteString -> Either String t
+parseJsonBsl = parseJsonBs . BSL.toStrict
+
+parseJsonT :: JsonReadable t => T.Text -> Either String t
+parseJsonT = parseJsonBs . T.encodeUtf8
 
 class JsonReadable t where
     readJson :: Parser t
@@ -202,7 +213,7 @@ runSpec mkVal spec =
     do let (mkTyVect, kv) = compileSpec spec
        hm <- readObject kv
        vect <- mkTyVect hm
-       return $ uncurry mkVal vect
+       return $! uncurry mkVal vect
 
 -- example:
 
@@ -219,6 +230,6 @@ instance JsonReadable SomeDummy where
     readJson =
         runSpec SomeDummy $ "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
 
-testSomeDummy :: Result SomeDummy
+testSomeDummy :: Either String SomeDummy
 testSomeDummy =
-    parse readJson "{\"int\": 34, \"bool\": true, \"text\": \"Teext\", \"either\": false}"
+    parseJsonBs "{\"int\": 34, \"bool\": true, \"text\": \"Teext\", \"either\": false}"
