@@ -74,6 +74,17 @@ readJList =
        return vals
 {-# INLINE readJList #-}
 
+readTuple :: JsonReadable t => Parser (t, t)
+readTuple =
+    do xs <- readJson
+       case xs of
+         (a : b : _) -> return (a, b)
+         _ -> fail "Not a tuple!"
+{-# INLINE readTuple #-}
+
+instance JsonReadable t => JsonReadable (t, t) where
+    readJson = readTuple
+
 instance JsonReadable Bool where
     readJson = readBool
 
