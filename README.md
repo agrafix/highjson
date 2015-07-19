@@ -76,3 +76,7 @@ mean                 2.077 ms   (2.050 ms .. 2.115 ms)
 std dev              103.6 μs   (80.86 μs .. 138.0 μs)
 variance introduced by outliers: 35% (moderately inflated)
 ```
+
+The benchmarks are derived from [aeson](https://github.com/bos/aeson)'s
+twitter-json-parsing benchmarks and should probably more there when this library is in a
+more complete state.
