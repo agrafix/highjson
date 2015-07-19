@@ -11,7 +11,12 @@ maintainer:          Alexander Thiemann <mail@athiemann.net>
 copyright:           (c) 2015 Alexander Thiemann
 category:            Text, Web, JSON
 build-type:          Simple
+stability:           experimental
 cabal-version:       >=1.10
+
+extra-source-files:
+    README.md
+    bench/json-data/*.json
 
 library
   exposed-modules:     Data.Json.Parser
