@@ -1,12 +1,14 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
 module Data.Json.Parser where
 
 import Control.Applicative
@@ -149,15 +151,32 @@ getOptValueByKey key hm =
       Nothing -> return Nothing
 {-# INLINE getOptValueByKey #-}
 
-data TypedText t =
-    TypedText T.Text
+type KeyReader t =
+    Monad m => T.Text -> HM.HashMap T.Text WrappedValue -> m t
 
-instance IsString (TypedText t) where
-    fromString = TypedText . T.pack
+data TypedKey t =
+    TypedKey (KeyReader t) T.Text
+
+reqKey :: Typeable t => T.Text -> TypedKey t
+reqKey = TypedKey getValueByKey
+
+optKey :: Typeable t => T.Text -> TypedKey (Maybe t)
+optKey =
+    TypedKey optGetter
+    where
+      optGetter k hm =
+          do mOpt <- getOptValueByKey k hm
+             return $ join mOpt
+
+instance Typeable t => IsString (TypedKey (Maybe t)) where
+    fromString = optKey . T.pack
+
+instance Typeable t => IsString (TypedKey t) where
+    fromString = reqKey . T.pack
 
 data ObjSpec (ts :: [*]) where
     ObjSpecNil :: ObjSpec '[]
-    (:&&:) :: (JsonReadable t, Typeable t) => TypedText t -> ObjSpec ts -> ObjSpec (t ': ts)
+    (:&&:) :: (JsonReadable t, Typeable t) => TypedKey t -> ObjSpec ts -> ObjSpec (t ': ts)
 
 infixr 5 :&&:
 
@@ -166,10 +185,10 @@ type CompiledSpec m ts =
 
 compileSpec :: Monad m => ObjSpec ts -> CompiledSpec m ts
 compileSpec ObjSpecNil = (const (return HNil), const Nothing)
-compileSpec ((TypedText key :: TypedText t) :&&: xs) =
+compileSpec ((TypedKey keyReader key :: TypedKey t) :&&: xs) =
     let (nextHmFun, nextParserFun) = compileSpec xs
     in ( \hm ->
-             do el <- getValueByKey key hm
+             do el <- keyReader key hm
                 xs <- nextHmFun hm
                 return (el :&: xs)
        , \lookupKey ->
@@ -193,11 +212,12 @@ data SomeDummy
    , sd_bool :: Bool
    , sd_text :: T.Text
    , sd_either :: Either Bool T.Text
+   , sd_maybe :: Maybe Int
    } deriving (Show)
 
 instance JsonReadable SomeDummy where
     readJson =
-        runSpec SomeDummy $ "int" :&&: "bool" :&&: "text" :&&: "either" :&&: ObjSpecNil
+        runSpec SomeDummy $ "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
 
 testSomeDummy :: Result SomeDummy
 testSomeDummy =
