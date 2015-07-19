@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -278,7 +279,7 @@ compileSpec ((TypedKey keyReader key :: TypedKey t) :&&: xs) =
                 return (el :&: xs)
        , \lookupKey ->
            if lookupKey == key
-           then Just (liftM WrappedValue (readJson :: Parser t))
+           then Just $! liftM WrappedValue (readJson :: Parser t)
            else nextParserFun lookupKey
        )
 
@@ -287,6 +288,6 @@ compileSpec ((TypedKey keyReader key :: TypedKey t) :&&: xs) =
 runSpec :: HVectElim ts x -> ObjSpec ts -> Parser x
 runSpec mkVal spec =
     do let (mkTyVect, kv) = compileSpec spec
-       hm <- readObject kv
-       vect <- mkTyVect hm
+       !hm <- readObject kv
+       !vect <- mkTyVect hm
        return $! uncurry mkVal vect
