@@ -62,16 +62,16 @@ class JsonReadable t where
     readJson :: Parser t
 
 instance JsonReadable t => JsonReadable [t] where
-    readJson = readJList
+    readJson = readJList readJson
 
 instance JsonReadable t => JsonReadable (V.Vector t) where
-    readJson = liftM V.fromList readJList
+    readJson = liftM V.fromList readJson
 
-readJList :: JsonReadable t => Parser [t]
-readJList =
+readJList :: Parser t -> Parser [t]
+readJList parseEl =
     do skipSpace
        char '['
-       vals <- readJson `sepBy'` (skipSpace >> char ',')
+       vals <- parseEl `sepBy'` (skipSpace >> char ',')
        skipSpace
        char ']'
        return vals
@@ -190,24 +190,48 @@ readEither =
 data WrappedValue
    = forall t. (Typeable t, JsonReadable t) => WrappedValue !t
 
+readAnyJsonVal :: Parser ()
+readAnyJsonVal =
+    () <$ readObject (const Nothing)
+           <|> () <$ readBool
+           <|> () <$ readText
+           <|> () <$ readNull
+           <|> () <$ (skipSpace >> scientific)
+           <|> () <$ readJList readAnyJsonVal
+{-# INLINE readAnyJsonVal #-}
+
 -- | Parse a json object given a value parser for each key
 readObject :: (T.Text -> Maybe (Parser WrappedValue)) -> Parser (HM.HashMap T.Text WrappedValue)
 readObject getKeyParser =
     do skipSpace
        char '{'
-       vals <- parseKv `sepBy'` (skipSpace >> char ',')
+       vals <- kvLoop
        skipSpace
        char '}'
        skipSpace
-       return $! HM.fromList (catMaybes vals)
+       return $! vals
     where
+      kvLoop =
+          do skipSpace
+             val <- parseKv
+             skipSpace
+             ch <- peekChar'
+             hm <-
+                 if ch == ','
+                 then do char ','
+                         kvLoop
+                 else return HM.empty
+             return $
+                    case val of
+                      Just (k, v) -> HM.insert k v hm
+                      Nothing -> hm
       parseKv =
           do k <- readText
              skipSpace
              char ':'
              case getKeyParser k of
                Nothing ->
-                   do () <$ readObject (const Nothing) <|> () <$ readBool <|> () <$ readText <|> () <$ readNull <|> () <$ (skipSpace >> scientific)
+                   do readAnyJsonVal
                       return Nothing
                Just parser -> Just <$> ((,) <$> pure k <*> parser)
 {-# INLINE readObject #-}
