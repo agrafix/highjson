@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -29,12 +28,15 @@ import qualified Data.Vector as V
 
 parseJsonBs :: JsonReadable t => BS.ByteString -> Either String t
 parseJsonBs = parseOnly (readJson <* skipSpace <* endOfInput)
+{-# INLINE parseJsonBs #-}
 
 parseJsonBsl :: JsonReadable t => BSL.ByteString -> Either String t
 parseJsonBsl = parseJsonBs . BSL.toStrict
+{-# INLINE parseJsonBsl #-}
 
 parseJsonT :: JsonReadable t => T.Text -> Either String t
 parseJsonT = parseJsonBs . T.encodeUtf8
+{-# INLINE parseJsonT #-}
 
 class JsonReadable t where
     readJson :: Parser t
@@ -133,7 +135,7 @@ readObject getKeyParser =
        vals <- parseKv `sepBy` (skipSpace >> char ',')
        skipSpace
        char '}'
-       return $ HM.fromList (catMaybes vals)
+       return $! HM.fromList (catMaybes vals)
     where
       parseKv =
           do k <- readText
