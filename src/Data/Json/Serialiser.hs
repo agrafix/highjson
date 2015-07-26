@@ -36,10 +36,14 @@ data SpecKey k t
    , k_getVal :: !(k -> Maybe t)
    }
 
+-- | Construct a 'SpecKey' mapping a json key to a getter function
 (.:) :: (ToJson t, Typeable t) => T.Text -> (k -> t) -> SpecKey k t
 k .: getter = SpecKey k (Just . getter)
 {-# INLINE (.:) #-}
 
+-- | Construct a 'SpecKey' mapping a json key to a getter function of
+-- a 'Maybe' type. This allows to omit the key when generating json instead of
+-- setting it to null.
 (.:?) :: (ToJson t, Typeable t) => T.Text -> (k -> Maybe t) -> SpecKey k (Maybe t)
 k .:? getter =
     SpecKey k $ \obj ->
