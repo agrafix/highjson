@@ -55,7 +55,6 @@ For more usage examples check the tests.
 
 * Implement proper string parsing (handle escape charaters)
 * Write more tests
-* Allow fast json generation via object specs
 * Generate typescript interfaces from object specs
 * ...
 
