@@ -1,5 +1,5 @@
 name:                highjson
-version:             0.2.0.0
+version:             0.2.0.1
 synopsis:            Very fast JSON serialisation and parsing library
 description:         Low boilerplate, easy to use and very fast JSON serialisation and parsing
 homepage:            https://github.com/agrafix/highjson
