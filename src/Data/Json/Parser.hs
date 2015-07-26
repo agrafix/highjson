@@ -326,6 +326,7 @@ infixr 3 <||>
 -- | Choice between multiple constructors
 (<||>) :: KeyedConstr k -> ParseSpec k -> ParseSpec k
 (<||>) = (:|:)
+{-# INLINE (<||>) #-}
 
 -- | Convert a 'ParseSpec' into a 'Parser'
 runParseSpec :: ParseSpec k -> Parser k

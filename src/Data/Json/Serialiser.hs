@@ -59,6 +59,7 @@ newtype KeyedSerialiser k
 -- | Associate a JSON key with a serialiser
 (.<-) :: ToJson a => T.Text -> a -> KeyedSerialiser k
 a .<- b = KeyedSerialiser $ toJson (a .= b)
+{-# INLINE (.<-) #-}
 
 -- | Parser specification. Use 'OnlyConstr' for normal types and 'FirstConstr'/'NextConstr' for sum types
 data SerSpec k where
@@ -70,6 +71,7 @@ runSerSpec spec input =
     case spec of
       SingleConstr fullSpec -> runSerObjSpec fullSpec input
       MultiConstr getVal -> unKeyedSerialiser $ getVal input
+{-# INLINE runSerSpec #-}
 
 -- | List of 'SpecKey's defining the serialisation of values to json
 data SerObjSpec k (ts :: [*]) where
@@ -80,8 +82,8 @@ infixr 5 :&&&:
 
 -- | Convert a 'SerObjSpec' into an 'Value' for defining 'ToJson' instances
 runSerObjSpec :: SerObjSpec k ts -> k -> Value
-runSerObjSpec spec input =
-    toJson (buildSpec spec input)
+runSerObjSpec spec input = toJson (buildSpec spec input)
+{-# INLINE runSerObjSpec #-}
 
 buildSpec :: SerObjSpec k ts -> k -> ObjectBuilder
 buildSpec spec input =
