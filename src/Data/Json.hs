@@ -78,7 +78,7 @@ mkSerSpec (FieldKey _ getter :+: xs) = getter S.:&&&: mkSerSpec xs
 -- non-sum types using 'JsonSpec'.
 data JsonSumSpec k
    = JsonSumSpec
-   { js_parser :: !P.ParseSpec k
+   { js_parser :: !(P.ParseSpec k)
    , js_serialiser :: !(k -> S.KeyedSerialiser k)
    }
 
