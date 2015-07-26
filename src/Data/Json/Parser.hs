@@ -300,21 +300,33 @@ data KeyedConstr k
    , kc_parser :: !(Parser k)
    }
 
--- | Tag a constructor
-(.->) :: T.Text -> Parser k -> KeyedConstr k
-key .-> parser = KeyedConstr key parser
+class ConstrTagger r where
+    type ResultType r :: *
+    -- | Tag a constructor
+    (.->) :: T.Text -> Parser (ResultType r) -> r
+
+instance ConstrTagger (KeyedConstr k) where
+    type ResultType (KeyedConstr k) = k
+    key .-> parser = KeyedConstr key parser
+
+instance ConstrTagger (ParseSpec k) where
+    type ResultType (ParseSpec k) = k
+    key .-> parser = FirstConstr (KeyedConstr key parser)
 
 -- | Parser specification. Use 'OnlyConstr' for normal types and 'FirstConstr'/'NextConstr' for sum types
-data ParseSpec k (tss :: [[*]]) where
-    OnlyConstr :: HVectElim ts k -> ObjSpec ts -> ParseSpec k '[ts]
-    FirstConstr :: KeyedConstr k -> ParseSpec k '[ts]
-    (:||:) :: KeyedConstr k -> ParseSpec k tss -> ParseSpec k (ts ': tss)
+data ParseSpec k where
+    (:$:) :: HVectElim ts k -> ObjSpec ts -> ParseSpec k
+    FirstConstr :: KeyedConstr k -> ParseSpec k
+    (:||:) :: KeyedConstr k -> ParseSpec k -> ParseSpec k
+
+infixr 4 :$:
+infixr 3 :||:
 
 -- | Convert a 'ParseSpec' into a 'Parser'
-runParseSpec :: ParseSpec k tss -> Parser k
+runParseSpec :: ParseSpec k -> Parser k
 runParseSpec x =
     case x of
-      OnlyConstr constr spec ->
+      constr :$: spec ->
           runSpec constr spec
       FirstConstr (KeyedConstr key parser) ->
           let keyGetter reqKey =

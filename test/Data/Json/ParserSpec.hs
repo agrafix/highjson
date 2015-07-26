@@ -20,7 +20,7 @@ data SomeDummy
 
 instance JsonReadable SomeDummy where
     readJson =
-        runParseSpec $ OnlyConstr SomeDummy $ "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
+        runParseSpec $ SomeDummy :$: "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
 
 data SomeNested
    = SomeNested
@@ -30,7 +30,7 @@ data SomeNested
 
 instance JsonReadable SomeNested where
     readJson =
-        runParseSpec $ OnlyConstr SomeNested $ "list" :&&: "obj" :&&: ObjSpecNil
+        runParseSpec $ SomeNested :$: "list" :&&: "obj" :&&: ObjSpecNil
 
 data Foo
    = Foo
@@ -39,7 +39,7 @@ data Foo
 
 instance JsonReadable Foo where
     readJson =
-        runParseSpec $ OnlyConstr Foo $ "value" :&&: ObjSpecNil
+        runParseSpec $ Foo :$: "value" :&&: ObjSpecNil
 
 data Bar
    = Bar
@@ -48,7 +48,7 @@ data Bar
 
 instance JsonReadable Bar where
     readJson =
-        runParseSpec $ OnlyConstr Bar $ "value" :&&: ObjSpecNil
+        runParseSpec $ Bar :$: "value" :&&: ObjSpecNil
 
 data SumType
    = SumFoo Foo
@@ -58,8 +58,8 @@ data SumType
 instance JsonReadable SumType where
     readJson =
         runParseSpec $
-        ("foo" .-> (SumFoo <$> readJson))
-        :||: FirstConstr ("bar" .-> (SumBar <$> readJson))
+        "foo" .-> (SumFoo <$> readJson)
+        :||: "bar" .-> (SumBar <$> readJson)
 
 spec :: Spec
 spec =

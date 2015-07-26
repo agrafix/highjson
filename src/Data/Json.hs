@@ -55,7 +55,7 @@ tk .=? getter = FieldKey tk ((P.typedKeyKey tk) S..:? getter)
 
 -- | Construct a 'P.Parser' from 'JsonSpec' to implement 'P.JsonReadable' instances
 makeParser :: JsonSpec k ts -> P.Parser k
-makeParser spec = P.runParseSpec $ P.OnlyConstr  (j_constr spec) (mkObjSpec $ j_fields spec)
+makeParser spec = P.runParseSpec $ (j_constr spec) P.:$: (mkObjSpec $ j_fields spec)
 {-# INLINE makeParser #-}
 
 mkObjSpec :: FieldSpec k ts -> P.ObjSpec ts
