@@ -59,7 +59,7 @@ instance JsonReadable SumType where
     readJson =
         runParseSpec $
         "foo" .-> (SumFoo <$> readJson)
-        :||: "bar" .-> (SumBar <$> readJson)
+        <||> "bar" .-> (SumBar <$> readJson)
 
 spec :: Spec
 spec =

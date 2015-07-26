@@ -6,8 +6,10 @@ module Data.Json
     ( -- * DSL to define JSON structure
       JsonSpec(..), FieldSpec(..), FieldKey, P.reqKey, P.optKey, P.TypedKey
     , (.=), (.=?)
+      -- * DSL to define JSON structure for sum types
+    , JsonSumSpec(..), (P..->), (P.<||>), (S..<-)
     , -- * Make parsers and serialisers from spec
-      makeParser, makeSerialiser
+      makeParser, makeSerialiser, makeSumParser, makeSumSerialiser
     , S.ToJson(..), P.JsonReadable(..)
     , -- * Run parsers / serialisers
       P.parseJsonBs, P.parseJsonBsl, P.parseJsonT
@@ -64,9 +66,26 @@ mkObjSpec (FieldKey k _ :+: xs) = k P.:&&: mkObjSpec xs
 
 -- | Construct a function from 'JsonSpec' to implement 'S.ToJson' instances
 makeSerialiser :: JsonSpec k ts -> k -> S.Value
-makeSerialiser spec = S.runSerSpec (mkSerSpec (j_fields spec))
+makeSerialiser spec = S.runSerSpec (S.SingleConstr $ mkSerSpec (j_fields spec))
 {-# INLINE makeSerialiser #-}
 
-mkSerSpec :: FieldSpec k ts -> S.SerSpec k ts
-mkSerSpec EmptySpec = S.SerSpecNil
+mkSerSpec :: FieldSpec k ts -> S.SerObjSpec k ts
+mkSerSpec EmptySpec = S.SerObjSpecNil
 mkSerSpec (FieldKey _ getter :+: xs) = getter S.:&&&: mkSerSpec xs
+
+-- | Describes JSON parsing and serialisation of a Haskell sum type. Currently
+-- the library can only guarantee matching parsers/serialisers for
+-- non-sum types using 'JsonSpec'.
+data JsonSumSpec k
+   = JsonSumSpec
+   { js_parser :: P.ParseSpec k
+   , js_serialiser :: k -> S.KeyedSerialiser k
+   }
+
+-- | Construct a 'P.Parser' from 'JsonSumSpec' to implement 'P.JsonReadable' instances
+makeSumParser :: JsonSumSpec k -> P.Parser k
+makeSumParser = P.runParseSpec . js_parser
+
+-- | Construct a function from 'JsonSumSpec' to implement 'S.ToJson' instances
+makeSumSerialiser :: JsonSumSpec k -> k -> S.Value
+makeSumSerialiser s = S.runSerSpec (S.MultiConstr (js_serialiser s))

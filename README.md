@@ -42,7 +42,9 @@ instance JsonReadable SomeDummy where
 test =
     parseJsonBs "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"either\": false}"
         == Right (SomeDummy 34 True "Teext" (Left False) Nothing)
-```
+ ```
+
+For more usage examples check the tests.
 
 ## Install
 

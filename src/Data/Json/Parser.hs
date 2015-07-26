@@ -16,7 +16,8 @@ module Data.Json.Parser
       -- * Description how to parse JSON to a Haskell type
     , JsonReadable(..)
       -- * DSL to easily create parser for custom Haskell types
-    , runParseSpec, ObjSpec(..), ParseSpec(..), KeyedConstr, (.->)
+    , runParseSpec, ObjSpec(..), ParseSpec(..), KeyedConstr, (.->), (<||>)
+    , ConstrTagger, ResultType
     , TypedKey, reqKey, optKey, typedKeyKey
       -- * Low level JSON parsing helpers
     , readObject, Parser, WrappedValue(..), getValueByKey, getOptValueByKey
@@ -293,7 +294,7 @@ instance Typeable t => IsString (TypedKey (Maybe t)) where
 instance Typeable t => IsString (TypedKey t) where
     fromString = reqKey . T.pack
 
--- | A tagged constructor
+-- | Associates a json key with a parser
 data KeyedConstr k
    = KeyedConstr
    { kc_key :: !T.Text
@@ -302,7 +303,7 @@ data KeyedConstr k
 
 class ConstrTagger r where
     type ResultType r :: *
-    -- | Tag a constructor
+    -- | Associate a json key with a parser
     (.->) :: T.Text -> Parser (ResultType r) -> r
 
 instance ConstrTagger (KeyedConstr k) where
@@ -313,14 +314,18 @@ instance ConstrTagger (ParseSpec k) where
     type ResultType (ParseSpec k) = k
     key .-> parser = FirstConstr (KeyedConstr key parser)
 
--- | Parser specification. Use 'OnlyConstr' for normal types and 'FirstConstr'/'NextConstr' for sum types
+-- | Parser specification. Use ':$:' for normal types and 'FirstConstr' / ':|:' for sum types
 data ParseSpec k where
     (:$:) :: HVectElim ts k -> ObjSpec ts -> ParseSpec k
     FirstConstr :: KeyedConstr k -> ParseSpec k
-    (:||:) :: KeyedConstr k -> ParseSpec k -> ParseSpec k
+    (:|:) :: KeyedConstr k -> ParseSpec k -> ParseSpec k
 
 infixr 4 :$:
-infixr 3 :||:
+infixr 3 <||>
+
+-- | Choice between multiple constructors
+(<||>) :: KeyedConstr k -> ParseSpec k -> ParseSpec k
+(<||>) = (:|:)
 
 -- | Convert a 'ParseSpec' into a 'Parser'
 runParseSpec :: ParseSpec k -> Parser k
@@ -337,7 +342,7 @@ runParseSpec x =
                 case HM.lookup key hm of
                   Nothing -> fail ("Missing key " ++ show key)
                   Just x -> return x
-      constr :||: next ->
+      constr :|: next ->
           runParseSpec (FirstConstr constr) <|> runParseSpec next
 
 -- | List of 'TypedKey's, should be in the same order as your

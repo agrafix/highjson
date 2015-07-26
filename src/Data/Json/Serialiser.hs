@@ -8,7 +8,7 @@ module Data.Json.Serialiser
       -- * Description how to serialise JSON from a Haskell type
     , ToJson(..)
       -- * DSL to easily create serialiser for custom Haskell types
-    , runSerSpec, SerSpec(..)
+    , runSerSpec, SerSpec(..), (.<-), KeyedSerialiser, SerObjSpec(..)
     , SpecKey, (.:), (.:?)
       -- * Low level JSON serialising helpers
     , ObjectBuilder, emptyObject, Value, (.=), (.=#), row, array, nullValue
@@ -53,22 +53,40 @@ k .:? getter =
              Just _ -> Just val
 {-# INLINE (.:?) #-}
 
+newtype KeyedSerialiser k
+    = KeyedSerialiser { unKeyedSerialiser :: Value }
+
+-- | Associate a JSON key with a serialiser
+(.<-) :: ToJson a => T.Text -> a -> KeyedSerialiser k
+a .<- b = KeyedSerialiser $ toJson (a .= b)
+
+-- | Parser specification. Use 'OnlyConstr' for normal types and 'FirstConstr'/'NextConstr' for sum types
+data SerSpec k where
+    SingleConstr :: SerObjSpec k ts -> SerSpec k
+    MultiConstr :: (k -> KeyedSerialiser k) -> SerSpec k
+
+runSerSpec :: SerSpec k -> k -> Value
+runSerSpec spec input =
+    case spec of
+      SingleConstr fullSpec -> runSerObjSpec fullSpec input
+      MultiConstr getVal -> unKeyedSerialiser $ getVal input
+
 -- | List of 'SpecKey's defining the serialisation of values to json
-data SerSpec k (ts :: [*]) where
-    SerSpecNil :: SerSpec k '[]
-    (:&&&:) :: (ToJson t, Typeable t) => !(SpecKey k t) -> !(SerSpec k ts) -> SerSpec k (t ': ts)
+data SerObjSpec k (ts :: [*]) where
+    SerObjSpecNil :: SerObjSpec k '[]
+    (:&&&:) :: (ToJson t, Typeable t) => !(SpecKey k t) -> !(SerObjSpec k ts) -> SerObjSpec k (t ': ts)
 
 infixr 5 :&&&:
 
--- | Convert a 'SerSpec' into an 'Value' for defining 'ToJson' instances
-runSerSpec :: SerSpec k ts -> k -> Value
-runSerSpec spec input =
+-- | Convert a 'SerObjSpec' into an 'Value' for defining 'ToJson' instances
+runSerObjSpec :: SerObjSpec k ts -> k -> Value
+runSerObjSpec spec input =
     toJson (buildSpec spec input)
 
-buildSpec :: SerSpec k ts -> k -> ObjectBuilder
+buildSpec :: SerObjSpec k ts -> k -> ObjectBuilder
 buildSpec spec input =
     case spec of
-      SerSpecNil -> mempty
+      SerObjSpecNil -> mempty
       (SpecKey key getVal :&&&: xs) ->
           case getVal input of
             Nothing -> buildSpec xs input

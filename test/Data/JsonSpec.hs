@@ -67,6 +67,41 @@ instance ToJson SomeNested where
 instance JsonReadable SomeNested where
     readJson = makeParser someNestedSpec
 
+data SomeSumType
+   = SomeDummyT SomeDummy
+   | SomeInt Int
+   | SomeBool Bool
+   deriving (Show, Eq)
+
+someSumSpec :: JsonSumSpec SomeSumType
+someSumSpec =
+    JsonSumSpec
+    { js_parser =
+            "dummy" .-> (SomeDummyT <$> readJson)
+       <||> "int" .-> (SomeInt <$> readJson)
+       <||> "bool" .-> (SomeBool <$> readJson)
+    , js_serialiser =
+          \v ->
+              case v of
+                SomeDummyT d -> "dummy" .<- d
+                SomeInt i -> "int" .<- i
+                SomeBool b -> "bool" .<- b
+    }
+
+instance ToJson SomeSumType where
+    toJson = makeSumSerialiser someSumSpec
+
+instance JsonReadable SomeSumType where
+    readJson = makeSumParser someSumSpec
+
+instance Arbitrary SomeSumType where
+    arbitrary =
+        oneof
+        [ SomeDummyT <$> arbitrary
+        , SomeInt <$> arbitrary
+        , SomeBool <$> arbitrary
+        ]
+
 spec :: Spec
 spec =
     describe "Parser and Serialiser" $
@@ -77,6 +112,8 @@ spec =
                parseJsonBs (serialiseJsonBs t2) `shouldBe` Right t2
        it "Handles arbitrary custom types correctly" $ property $ \t ->
            (parseJsonBs . serialiseJsonBs) t == Right (t :: SomeDummy)
+       it "Handles arbitrary custom sum types correctly" $ property $ \t ->
+           (parseJsonBs . serialiseJsonBs) t == Right (t :: SomeSumType)
        it "Handles nested types correctly" $
           do let nested = SomeNested [SomeNested [] Nothing] (Just $ SomeNested [] Nothing)
              parseJsonBs (serialiseJsonBs nested) `shouldBe` Right nested
