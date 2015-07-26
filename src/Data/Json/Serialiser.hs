@@ -16,6 +16,7 @@ module Data.Json.Serialiser
 where
 
 import Data.BufferBuilder.Json
+import Data.Int
 import Data.Monoid
 import Data.Typeable
 import qualified Data.ByteString as BS
@@ -28,6 +29,15 @@ instance (ToJson a, ToJson b) => ToJson (Either a b) where
         case x of
           Left y -> toJson y
           Right z -> toJson z
+
+instance (ToJson a, ToJson b) => ToJson (a,  b) where
+    toJson (x, y) = toJson [ toJson x, toJson y ]
+
+instance ToJson Int64 where
+    toJson i =
+        let j :: Int
+            j = fromIntegral i
+        in toJson j
 
 -- | A json key and a getter
 data SpecKey k t

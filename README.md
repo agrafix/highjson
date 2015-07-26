@@ -64,27 +64,24 @@ To run the benchmarks, use `cabal bench`. Current results on my MacBook Pro:
 
 ```
 $ cabal bench
-Preprocessing library highjson-0.1.0.0...
-[1 of 1] Compiling Data.Json.Parser ( src/Data/Json/Parser.hs, dist/build/Data/Json/Parser.o )
-In-place registering highjson-0.1.0.0...
-Preprocessing benchmark 'highjson-benchmarks' for highjson-0.1.0.0...
-[1 of 1] Compiling Main             ( bench/Twitter.hs, dist/build/highjson-benchmarks/highjson-benchmarks-tmp/Main.o ) [Data.Json.Parser changed]
-Linking dist/build/highjson-benchmarks/highjson-benchmarks ...
+Preprocessing library highjson-0.2.0.0...
+In-place registering highjson-0.2.0.0...
+Preprocessing benchmark 'highjson-benchmarks' for highjson-0.2.0.0...
 Running 1 benchmarks...
 Benchmark highjson-benchmarks: RUNNING...
 benchmarking twitter/aeson
-time                 2.200 ms   (2.044 ms .. 2.349 ms)
-                     0.983 R²   (0.975 R² .. 0.996 R²)
-mean                 2.065 ms   (2.031 ms .. 2.120 ms)
-std dev              138.3 μs   (93.40 μs .. 204.8 μs)
-variance introduced by outliers: 48% (moderately inflated)
+time                 2.148 ms   (2.102 ms .. 2.187 ms)
+                     0.997 R²   (0.995 R² .. 0.999 R²)
+mean                 2.137 ms   (2.112 ms .. 2.169 ms)
+std dev              99.12 μs   (81.84 μs .. 120.1 μs)
+variance introduced by outliers: 31% (moderately inflated)
 
 benchmarking twitter/highjson
-time                 2.058 ms   (2.032 ms .. 2.087 ms)
-                     0.997 R²   (0.994 R² .. 0.999 R²)
-mean                 2.077 ms   (2.050 ms .. 2.115 ms)
-std dev              103.6 μs   (80.86 μs .. 138.0 μs)
-variance introduced by outliers: 35% (moderately inflated)
+time                 2.196 ms   (2.162 ms .. 2.235 ms)
+                     0.998 R²   (0.996 R² .. 0.999 R²)
+mean                 2.222 ms   (2.195 ms .. 2.252 ms)
+std dev              94.52 μs   (75.45 μs .. 125.1 μs)
+variance introduced by outliers: 28% (moderately inflated)
 ```
 
 The benchmarks are derived from [aeson](https://github.com/bos/aeson)'s
