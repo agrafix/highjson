@@ -9,14 +9,12 @@ highjson
 
 Hackage: [highjson](http://hackage.haskell.org/package/highjson)
 
-Low boilerplate, easy to use and very fast Haskell JSON parsing. **WARNING: Work in progress!**
+Low boilerplate, easy to use and very fast Haskell JSON serialisation and parsing. **WARNING: Work in progress!**
 
 ## Usage
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
-import Data.Json.Parser
-
 data SomeDummy
    = SomeDummy
    { sd_int :: Int
@@ -26,10 +24,20 @@ data SomeDummy
    , sd_maybe :: Maybe Int
    } deriving (Show, Eq)
 
+someDummySpec =
+    JsonSpec SomeDummy $
+    "int" .= sd_int
+    :+: "bool" .= sd_bool
+    :+: "text" .= sd_text
+    :+: "either" .= sd_either
+    :+: "maybe" .=? sd_maybe
+    :+: EmptySpec
+
+instance ToJson SomeDummy where
+    toJson = makeSerialiser someDummySpec
+
 instance JsonReadable SomeDummy where
-    readJson =
-       runSpec SomeDummy $
-          "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
+    readJson = makeParser someDummySpec
 
 test =
     parseJsonBs "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"either\": false}"

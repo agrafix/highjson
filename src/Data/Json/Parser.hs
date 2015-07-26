@@ -16,9 +16,9 @@ module Data.Json.Parser
     , JsonReadable(..)
       -- * DSL to easily create parser for custom Haskell types
     , runSpec, ObjSpec(..)
-    , TypedKey, reqKey, optKey
+    , TypedKey, reqKey, optKey, typedKeyKey
       -- * Low level JSON parsing helpers
-    , readObject, WrappedValue(..), getValueByKey, getOptValueByKey
+    , readObject, Parser, WrappedValue(..), getValueByKey, getOptValueByKey
     )
 where
 
@@ -263,9 +263,15 @@ type KeyReader t =
 data TypedKey t =
     TypedKey !(KeyReader t) !T.Text
 
+-- | Get the textual key of a 'TypedKey'
+typedKeyKey :: TypedKey t -> T.Text
+typedKeyKey (TypedKey _ t) = t
+{-# INLINE typedKeyKey #-}
+
 -- | Required json object key. Use 'IsString' instance for automatic choice
 reqKey :: Typeable t => T.Text -> TypedKey t
 reqKey = TypedKey getValueByKey
+{-# INLINE reqKey #-}
 
 -- | Optional json object key. Use 'IsString' instance for automatic choice
 optKey :: Typeable t => T.Text -> TypedKey (Maybe t)
@@ -275,6 +281,7 @@ optKey =
       optGetter k hm =
           do mOpt <- getOptValueByKey k hm
              return $ join mOpt
+{-# INLINE optKey #-}
 
 instance Typeable t => IsString (TypedKey (Maybe t)) where
     fromString = optKey . T.pack
@@ -308,7 +315,7 @@ compileSpec ((TypedKey keyReader key :: TypedKey t) :&&: xs) =
        )
 
 -- | Convert an 'ObjSpec' into a 'Parser' provided a constructor
--- function
+-- function for defining 'JsonReadable' instances.
 runSpec :: HVectElim ts x -> ObjSpec ts -> Parser x
 runSpec mkVal spec =
     do let (mkTyVect, kv) = compileSpec spec
