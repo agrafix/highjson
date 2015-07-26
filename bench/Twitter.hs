@@ -24,7 +24,7 @@ data Metadata = Metadata {
 
 instance JsonReadable Metadata where
     readJson =
-        runSpec Metadata $ "result_type" :&&: ObjSpecNil
+        runParseSpec $ OnlyConstr Metadata $ "result_type" :&&: ObjSpecNil
 
 instance NFData Metadata
 
@@ -35,7 +35,7 @@ data Geo = Geo {
 
 instance JsonReadable Geo where
     readJson =
-        runSpec Geo $ "type_" :&&: "coordinates" :&&: ObjSpecNil
+        runParseSpec $ OnlyConstr Geo $ "type_" :&&: "coordinates" :&&: ObjSpecNil
 
 instance NFData Geo
 
@@ -58,7 +58,7 @@ data Story = Story {
 
 instance JsonReadable Story where
     readJson =
-        runSpec Story $
+        runParseSpec $ OnlyConstr Story $
             "from_user_id_str" :&&: "profile_image_url" :&&: "created_at"
               :&&: "from_user" :&&: "id_str" :&&: "metadata" :&&: "to_user_id"
               :&&: "text" :&&: "id" :&&: "from_user_id" :&&: "geo" :&&: "iso_language_code"
@@ -83,7 +83,7 @@ data Result = Result {
 
 instance JsonReadable Result where
     readJson =
-        runSpec Result $
+        runParseSpec $ OnlyConstr Result $
             "results" :&&: "max_id" :&&: "since_id" :&&: "refresh_url" :&&: "next_page"
               :&&: "results_per_page" :&&: "page" :&&: "completed_in" :&&: "since_id_str"
               :&&: "max_id_str" :&&: "query"

@@ -4,18 +4,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
 module Data.Json.Parser
     ( -- * Parsing from different types
       parseJsonBs, parseJsonBsl, parseJsonT
       -- * Description how to parse JSON to a Haskell type
     , JsonReadable(..)
       -- * DSL to easily create parser for custom Haskell types
-    , runSpec, ObjSpec(..)
+    , runParseSpec, ObjSpec(..), ParseSpec(..), KeyedConstr, (.->)
     , TypedKey, reqKey, optKey, typedKeyKey
       -- * Low level JSON parsing helpers
     , readObject, Parser, WrappedValue(..), getValueByKey, getOptValueByKey
@@ -200,8 +201,11 @@ readAnyJsonVal =
            <|> () <$ readJList readAnyJsonVal
 {-# INLINE readAnyJsonVal #-}
 
+instance JsonReadable a => JsonReadable (HVect '[a]) where
+    readJson = liftM singleton readJson
+
 -- | Parse a json object given a value parser for each key
-readObject :: (T.Text -> Maybe (Parser WrappedValue)) -> Parser (HM.HashMap T.Text WrappedValue)
+readObject :: (T.Text -> Maybe (Parser a)) -> Parser (HM.HashMap T.Text a)
 readObject getKeyParser =
     do skipSpace
        char '{'
@@ -288,6 +292,41 @@ instance Typeable t => IsString (TypedKey (Maybe t)) where
 
 instance Typeable t => IsString (TypedKey t) where
     fromString = reqKey . T.pack
+
+-- | A tagged constructor
+data KeyedConstr k
+   = KeyedConstr
+   { kc_key :: !T.Text
+   , kc_parser :: !(Parser k)
+   }
+
+-- | Tag a constructor
+(.->) :: T.Text -> Parser k -> KeyedConstr k
+key .-> parser = KeyedConstr key parser
+
+-- | Parser specification. Use 'OnlyConstr' for normal types and 'FirstConstr'/'NextConstr' for sum types
+data ParseSpec k (tss :: [[*]]) where
+    OnlyConstr :: HVectElim ts k -> ObjSpec ts -> ParseSpec k '[ts]
+    FirstConstr :: KeyedConstr k -> ParseSpec k '[ts]
+    (:||:) :: KeyedConstr k -> ParseSpec k tss -> ParseSpec k (ts ': tss)
+
+-- | Convert a 'ParseSpec' into a 'Parser'
+runParseSpec :: ParseSpec k tss -> Parser k
+runParseSpec x =
+    case x of
+      OnlyConstr constr spec ->
+          runSpec constr spec
+      FirstConstr (KeyedConstr key parser) ->
+          let keyGetter reqKey =
+                  if reqKey == key
+                  then Just parser
+                  else Nothing
+          in do hm <- readObject keyGetter
+                case HM.lookup key hm of
+                  Nothing -> fail ("Missing key " ++ show key)
+                  Just x -> return x
+      constr :||: next ->
+          runParseSpec (FirstConstr constr) <|> runParseSpec next
 
 -- | List of 'TypedKey's, should be in the same order as your
 -- constructor in 'runSpec' will expect them

@@ -4,6 +4,7 @@ module Data.Json.ParserSpec where
 
 import Data.Json.Parser
 
+import Control.Applicative
 import Data.Typeable
 import qualified Data.Text as T
 import Test.Hspec
@@ -19,7 +20,7 @@ data SomeDummy
 
 instance JsonReadable SomeDummy where
     readJson =
-        runSpec SomeDummy $ "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
+        runParseSpec $ OnlyConstr SomeDummy $ "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
 
 data SomeNested
    = SomeNested
@@ -29,7 +30,36 @@ data SomeNested
 
 instance JsonReadable SomeNested where
     readJson =
-        runSpec SomeNested $ "list" :&&: "obj" :&&: ObjSpecNil
+        runParseSpec $ OnlyConstr SomeNested $ "list" :&&: "obj" :&&: ObjSpecNil
+
+data Foo
+   = Foo
+    { f_fooVal :: Int
+    } deriving (Show, Eq)
+
+instance JsonReadable Foo where
+    readJson =
+        runParseSpec $ OnlyConstr Foo $ "value" :&&: ObjSpecNil
+
+data Bar
+   = Bar
+    { b_barVal :: Int
+    } deriving (Show, Eq)
+
+instance JsonReadable Bar where
+    readJson =
+        runParseSpec $ OnlyConstr Bar $ "value" :&&: ObjSpecNil
+
+data SumType
+   = SumFoo Foo
+   | SumBar Bar
+   deriving (Show, Eq)
+
+instance JsonReadable SumType where
+    readJson =
+        runParseSpec $
+        ("foo" .-> (SumFoo <$> readJson))
+        :||: FirstConstr ("bar" .-> (SumBar <$> readJson))
 
 spec :: Spec
 spec =
@@ -48,3 +78,6 @@ spec =
        it "Parses bools correctly" $
             do parseJsonBs "true" `shouldBe` Right True
                parseJsonBs "false" `shouldBe` Right False
+       it "Handles sum types correctly" $
+           do parseJsonBs "{\"foo\": {\"value\": 42}}" `shouldBe` Right (SumFoo (Foo 42))
+              parseJsonBs "{\"bar\": {\"value\": 42}}" `shouldBe` Right (SumBar (Bar 42))
