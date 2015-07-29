@@ -27,6 +27,7 @@ where
 import Control.Applicative
 import Control.Monad
 import Data.Attoparsec.ByteString.Char8
+import qualified Data.Attoparsec.ByteString as ABS
 import Data.HVect
 import Data.Int
 import Data.Maybe
@@ -34,13 +35,24 @@ import Data.Scientific hiding (scientific)
 import Data.String
 import Data.Typeable
 import Data.Word
+import Foreign.C.Types
+import Foreign.C.String
+import Foreign.Marshal.Alloc
+import Foreign.Storable
+import Foreign.ForeignPtr
+import Foreign.Ptr
+import System.IO.Unsafe (unsafePerformIO)
 import Prelude hiding (uncurry, take)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Unsafe as BS
+import qualified Data.ByteString.Internal as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
+
+foreign import ccall unsafe "bs_json_unescape" bs_json_unescape :: CULong -> Ptr CInt -> CString -> CString -> IO ()
 
 -- | Parse json from a strict 'BS.ByteString'
 parseJsonBs :: JsonReadable t => BS.ByteString -> Either String t
@@ -150,22 +162,51 @@ readBoundedInteger =
 instance JsonReadable T.Text where
     readJson = readText
 
+data StrictScan
+   = StrictScan {-# UNPACK #-} !Word8 {-# UNPACK #-} !Word8
+
 readText :: Parser T.Text
 readText =
     do skipSpace
        char '"'
-       txt <-
-           scan False $ \s c ->
-           if s
-           then Just False
-           else if c == '"'
-                then Nothing
-                else Just (c == '\\')
+       (txt, (StrictScan _ escaped)) <-
+           ABS.runScanner (StrictScan 0 0) strictScan
        char '"'
-       case T.decodeUtf8' txt of
+       readyForRead <-
+               if escaped == 1
+               then case unescapeText txt of
+                      Left err ->
+                          fail err
+                      Right ok ->
+                          return ok
+               else return txt
+       case T.decodeUtf8' readyForRead of
          Right r -> return r
          Left msg -> fail $ show msg
+    where
+      strictScan !(StrictScan x y) !c =
+          if x == 1 then Just (StrictScan 0 y)
+          else if c == 34 then Nothing -- '"'
+               else let x' = if c == 92 then 1 else 0 -- '\\'
+                    in Just (StrictScan x' (max x' y))
 {-# INLINE readText #-}
+
+unescapeText :: BS.ByteString -> Either String BS.ByteString
+unescapeText bs =
+    unsafePerformIO $
+    do let len = BS.length bs
+       outBsPtr <- BS.mallocByteString len
+       (outBs, errCode) <-
+           withForeignPtr outBsPtr $ \ptr ->
+           alloca $ \errCode ->
+           BS.unsafeUseAsCString bs $ \inBs ->
+           do bs_json_unescape (fromIntegral len) errCode inBs ptr
+              code <- peek errCode
+              bs <- BS.unsafePackCString ptr
+              return (bs, code)
+       return $ if errCode /= 0
+                then Left ("Invalid escape sequence. ErrNo=" ++ show errCode)
+                else Right outBs
 
 instance JsonReadable t => JsonReadable (Maybe t) where
     readJson = readMaybe
