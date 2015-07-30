@@ -82,7 +82,9 @@ spec =
             do parseJsonBs "\"Hello world\"" `shouldBe` Right ("Hello world" :: T.Text)
                parseJsonBs "\"Hello \\\"world\\\"\"" `shouldBe` Right ("Hello \"world\"" :: T.Text)
                parseJsonBs "\"Hello \\nworld\"" `shouldBe` Right ("Hello \nworld" :: T.Text)
-               -- TODO: fix this test: \u306e parseJsonBs "\"\\u306e Hello \\\"world\\\"\"" `shouldBe` Right ("\u306e Hello \"world\"" :: T.Text)
+               parseJsonBs "\"\\u0041 Hello \\\"world\\\"\"" `shouldBe` Right ("A Hello \"world\"" :: T.Text)
+               parseJsonBs "\"\\u306e Hello \\\"world\\\"\"" `shouldBe` Right ("\12398 Hello \"world\"" :: T.Text)
+               parseJsonBs "\"\\uD834\\uDD1E\"" `shouldBe` Right ("\RS" :: T.Text)
        it "Handles sum types correctly" $
            do parseJsonBs "{\"foo\": {\"value\": 42}}" `shouldBe` Right (SumFoo (Foo 42))
               parseJsonBs "{\"bar\": {\"value\": 42}}" `shouldBe` Right (SumBar (Bar 42))

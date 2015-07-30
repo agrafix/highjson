@@ -162,18 +162,15 @@ readBoundedInteger =
 instance JsonReadable T.Text where
     readJson = readText
 
-data StrictScan
-   = StrictScan {-# UNPACK #-} !Word8 {-# UNPACK #-} !Word8
-
 readText :: Parser T.Text
 readText =
     do skipSpace
        char '"'
-       (txt, (StrictScan _ escaped)) <-
-           ABS.runScanner (StrictScan 0 0) strictScan
+       (txt, escaped) <-
+           ABS.runScanner 0 strictScanW
        char '"'
        readyForRead <-
-               if escaped == 1
+               if escaped == 1 || escaped == 3
                then case unescapeText txt of
                       Left err ->
                           fail err
@@ -184,11 +181,17 @@ readText =
          Right r -> return r
          Left msg -> fail $ show msg
     where
-      strictScan !(StrictScan x y) !c =
-          if x == 1 then Just (StrictScan 0 y)
-          else if c == 34 then Nothing -- '"'
-               else let x' = if c == 92 then 1 else 0 -- '\\'
-                    in Just (StrictScan x' (max x' y))
+      strictScanW :: Word8 -> Word8 -> Maybe Word8
+      strictScanW !w !c
+          | w == 2 = Just 0
+          | w == 3 = Just 1
+          | otherwise =
+              if c == 34 then Nothing
+              else let x =
+                           if c == 92
+                           then 3
+                           else if w == 1 || w == 3 then 1 else 0
+                   in Just x
 {-# INLINE readText #-}
 
 unescapeText :: BS.ByteString -> Either String BS.ByteString

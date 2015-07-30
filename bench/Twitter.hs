@@ -153,4 +153,9 @@ main =
           [ bench "aeson" $ nf (checkOkIs . A.eitherDecodeStrict') twitter100
           , bench "highjson" $ nf (checkOkIs . parseJsonBs) twitter100
           ]
+    , env (BS.readFile "bench/json-data/jp100.json") $ \ ~(twitter100 :: BS.ByteString) ->
+          bgroup "twitter-jp"
+          [ bench "aeson" $ nf (checkOkIs . A.eitherDecodeStrict') twitter100
+          , bench "highjson" $ nf (checkOkIs . parseJsonBs) twitter100
+          ]
     ]
