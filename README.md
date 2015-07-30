@@ -74,32 +74,32 @@ Preprocessing benchmark 'highjson-benchmarks' for highjson-0.2.0.3...
 Running 1 benchmarks...
 Benchmark highjson-benchmarks: RUNNING...
 benchmarking twitter/aeson
-time                 1.923 ms   (1.882 ms .. 1.961 ms)
-                     0.993 R²   (0.988 R² .. 0.996 R²)
-mean                 2.160 ms   (2.094 ms .. 2.229 ms)
-std dev              245.0 μs   (206.1 μs .. 290.6 μs)
-variance introduced by outliers: 74% (severely inflated)
+time                 2.118 ms   (2.075 ms .. 2.166 ms)
+                     0.996 R²   (0.993 R² .. 0.998 R²)
+mean                 2.099 ms   (2.068 ms .. 2.145 ms)
+std dev              130.3 μs   (88.79 μs .. 238.0 μs)
+variance introduced by outliers: 45% (moderately inflated)
 
 benchmarking twitter/highjson
-time                 2.189 ms   (2.154 ms .. 2.232 ms)
-                     0.996 R²   (0.993 R² .. 0.998 R²)
-mean                 2.228 ms   (2.195 ms .. 2.283 ms)
-std dev              134.6 μs   (103.0 μs .. 207.0 μs)
-variance introduced by outliers: 44% (moderately inflated)
+time                 2.096 ms   (2.043 ms .. 2.147 ms)
+                     0.995 R²   (0.992 R² .. 0.997 R²)
+mean                 2.049 ms   (2.016 ms .. 2.089 ms)
+std dev              121.4 μs   (98.95 μs .. 168.9 μs)
+variance introduced by outliers: 42% (moderately inflated)
 
 benchmarking twitter-jp/aeson
-time                 2.431 ms   (2.389 ms .. 2.475 ms)
-                     0.996 R²   (0.994 R² .. 0.998 R²)
-mean                 2.440 ms   (2.409 ms .. 2.478 ms)
-std dev              111.5 μs   (89.44 μs .. 140.4 μs)
-variance introduced by outliers: 30% (moderately inflated)
+time                 2.513 ms   (2.443 ms .. 2.597 ms)
+                     0.993 R²   (0.989 R² .. 0.998 R²)
+mean                 2.501 ms   (2.468 ms .. 2.542 ms)
+std dev              129.0 μs   (108.7 μs .. 158.0 μs)
+variance introduced by outliers: 34% (moderately inflated)
 
 benchmarking twitter-jp/highjson
-time                 2.498 ms   (2.436 ms .. 2.564 ms)
-                     0.996 R²   (0.993 R² .. 0.998 R²)
-mean                 2.439 ms   (2.408 ms .. 2.478 ms)
-std dev              112.9 μs   (94.02 μs .. 136.7 μs)
-variance introduced by outliers: 30% (moderately inflated)
+time                 2.415 ms   (2.359 ms .. 2.487 ms)
+                     0.994 R²   (0.992 R² .. 0.997 R²)
+mean                 2.383 ms   (2.347 ms .. 2.427 ms)
+std dev              132.1 μs   (99.37 μs .. 168.4 μs)
+variance introduced by outliers: 39% (moderately inflated)
 ```
 
 The benchmarks are derived from [aeson](https://github.com/bos/aeson)'s

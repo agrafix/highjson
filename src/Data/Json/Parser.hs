@@ -84,10 +84,10 @@ instance JsonReadable t => JsonReadable (V.Vector t) where
 readJList :: Parser t -> Parser [t]
 readJList parseEl =
     do skipSpace
-       char '['
-       vals <- parseEl `sepBy'` (skipSpace >> char ',')
+       ABS.word8 91 -- [
+       vals <- parseEl `sepBy'` (skipSpace >> ABS.word8 44) -- ,
        skipSpace
-       char ']'
+       ABS.word8 93 -- ]
        return vals
 {-# INLINE readJList #-}
 
@@ -107,8 +107,8 @@ instance JsonReadable Bool where
 
 readBool :: Parser Bool
 readBool =
-    do skipSpace
-       True <$ string "true" <|> False <$ string "false"
+    do skipSpace -- t rue and -- f alse
+       True <$ (ABS.word8 116 <* ABS.take 3) <|> False <$ (ABS.word8 102 <* ABS.take 4)
 {-# INLINE readBool #-}
 
 instance JsonReadable Scientific where
@@ -165,10 +165,10 @@ instance JsonReadable T.Text where
 readText :: Parser T.Text
 readText =
     do skipSpace
-       char '"'
+       ABS.word8 34 -- double quote
        (txt, escaped) <-
            ABS.runScanner 0 strictScanW
-       char '"'
+       ABS.word8 34 -- double quote
        readyForRead <-
                if escaped == 1 || escaped == 3
                then case unescapeText txt of
@@ -186,9 +186,9 @@ readText =
           | w == 2 = Just 0
           | w == 3 = Just 1
           | otherwise =
-              if c == 34 then Nothing
+              if c == 34 then Nothing -- double quote
               else let x =
-                           if c == 92
+                           if c == 92 -- backslash
                            then 3
                            else if w == 1 || w == 3 then 1 else 0
                    in Just x
@@ -215,7 +215,7 @@ instance JsonReadable t => JsonReadable (Maybe t) where
     readJson = readMaybe
 
 readNull :: Parser ()
-readNull = () <$ string "null"
+readNull = () <$ (ABS.word8 110 <* ABS.take 3) -- n ull
 {-# INLINE readNull #-}
 
 readMaybe :: JsonReadable t => Parser (Maybe t)
@@ -253,10 +253,10 @@ instance JsonReadable a => JsonReadable (HVect '[a]) where
 readObject :: (T.Text -> Maybe (Parser a)) -> Parser (HM.HashMap T.Text a)
 readObject getKeyParser =
     do skipSpace
-       char '{'
+       ABS.word8 123 -- {
        vals <- kvLoop
        skipSpace
-       char '}'
+       ABS.word8 125 -- }
        skipSpace
        return $! vals
     where
@@ -264,10 +264,10 @@ readObject getKeyParser =
           do skipSpace
              val <- parseKv
              skipSpace
-             ch <- peekChar'
+             ch <- ABS.peekWord8'
              hm <-
-                 if ch == ','
-                 then do char ','
+                 if ch == 44 -- ,
+                 then do _ <- ABS.take 1 -- skip the comma
                          kvLoop
                  else return HM.empty
              return $
@@ -277,7 +277,7 @@ readObject getKeyParser =
       parseKv =
           do k <- readText
              skipSpace
-             char ':'
+             ABS.word8 58 -- :
              case getKeyParser k of
                Nothing ->
                    do readAnyJsonVal
