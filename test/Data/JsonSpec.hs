@@ -71,7 +71,7 @@ data SomeSumType
    = SomeDummyT SomeDummy
    | SomeInt Int
    | SomeBool Bool
-   deriving (Show, Eq)
+   deriving (Show, Eq, Typeable)
 
 someSumSpec :: JsonSumSpec SomeSumType
 someSumSpec =
@@ -102,6 +102,29 @@ instance Arbitrary SomeSumType where
         , SomeBool <$> arbitrary
         ]
 
+data ParamType a
+   = ParamType
+   { pt_key :: a
+   , pt_val :: T.Text
+   } deriving (Show, Eq, Typeable)
+
+paramTypeSpec :: (Typeable a, ToJson a, JsonReadable a) => JsonSpec (ParamType a) '[a, T.Text]
+paramTypeSpec =
+    JsonSpec ParamType $
+    reqKey "key" .= pt_key
+    :+: "val" .= pt_val
+    :+: EmptySpec
+
+instance (Typeable a, ToJson a, JsonReadable a) => ToJson (ParamType a) where
+    toJson = makeSerialiser paramTypeSpec
+
+instance (Typeable a, ToJson a, JsonReadable a) => JsonReadable (ParamType a) where
+    readJson = makeParser paramTypeSpec
+
+instance Arbitrary a => Arbitrary (ParamType a) where
+    arbitrary =
+        ParamType <$> arbitrary <*> arbitrary
+
 spec :: Spec
 spec =
     describe "Parser and Serialiser" $
@@ -114,6 +137,8 @@ spec =
            (parseJsonBs . serialiseJsonBs) t == Right (t :: SomeDummy)
        it "Handles arbitrary custom sum types correctly" $ property $ \t ->
            (parseJsonBs . serialiseJsonBs) t == Right (t :: SomeSumType)
+       it "Handles arbitrary custom parametrized types correctly" $ property $ \t ->
+           (parseJsonBs . serialiseJsonBs) t == Right (t :: ParamType SomeSumType)
        it "Handles nested types correctly" $
           do let nested = SomeNested [SomeNested [] Nothing] (Just $ SomeNested [] Nothing)
              parseJsonBs (serialiseJsonBs nested) `shouldBe` Right nested

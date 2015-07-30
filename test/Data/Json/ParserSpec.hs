@@ -61,6 +61,16 @@ instance JsonReadable SumType where
         "foo" .-> (SumFoo <$> readJson)
         <||> "bar" .-> (SumBar <$> readJson)
 
+data ParamType k
+   = ParamType
+   { pt_key :: k
+   , pt_val :: T.Text
+   } deriving (Show, Eq)
+
+instance (Typeable k, JsonReadable k) => JsonReadable (ParamType k) where
+    readJson =
+        runParseSpec $ ParamType :$: "key" :&&: "val" :&&: ObjSpecNil
+
 spec :: Spec
 spec =
     describe "Parser" $
@@ -73,8 +83,11 @@ spec =
             parseJsonBs "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"either\": false, \"extraKey\": false}"
                                `shouldBe` Right (SomeDummy 34 True "Teext" (Left False) Nothing)
        it "Handles nested types correctly" $
-           do parseJsonBs "{\"list\": [{\"list\": []}], \"obj\": {\"list\": []}}"
-                               `shouldBe` Right (SomeNested [SomeNested [] Nothing] (Just $ SomeNested [] Nothing))
+           parseJsonBs "{\"list\": [{\"list\": []}], \"obj\": {\"list\": []}}"
+                           `shouldBe` Right (SomeNested [SomeNested [] Nothing] (Just $ SomeNested [] Nothing))
+       it "Handles parametrized types correctly" $
+           parseJsonBs "{\"key\": true, \"val\": \"hi\"}"
+                           `shouldBe` Right (ParamType True "hi")
        it "Parses bools correctly" $
             do parseJsonBs "true" `shouldBe` Right True
                parseJsonBs "false" `shouldBe` Right False
