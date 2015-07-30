@@ -398,28 +398,39 @@ data ObjSpec (ts :: [*]) where
 
 infixr 5 :&&:
 
-type CompiledSpec m ts =
-    (HM.HashMap T.Text WrappedValue -> m (HVect ts), T.Text -> Maybe (Parser WrappedValue))
+data CompiledSpec m ts
+   = CompiledSpec
+   { cs_mkTyVec :: !(HM.HashMap T.Text WrappedValue -> m (HVect ts))
+   , cs_objReader :: !(T.Text -> Maybe (Parser WrappedValue))
+   }
 
 compileSpec :: Monad m => ObjSpec ts -> CompiledSpec m ts
-compileSpec ObjSpecNil = (const (return HNil), const Nothing)
+compileSpec ObjSpecNil = CompiledSpec (const (return HNil)) (const Nothing)
 compileSpec ((TypedKey keyReader key :: TypedKey t) :&&: xs) =
-    let (nextHmFun, nextParserFun) = compileSpec xs
-    in ( \hm ->
+    let CompiledSpec nextHmFun nextParserFun = compileSpec xs
+    in CompiledSpec
+       { cs_mkTyVec =
+             \hm ->
              do el <- keyReader key hm
                 xs <- nextHmFun hm
                 return (el :&: xs)
-       , \lookupKey ->
+       , cs_objReader =
+           \lookupKey ->
            if lookupKey == key
            then Just $! liftM WrappedValue (readJson :: Parser t)
            else nextParserFun lookupKey
-       )
+       }
 
 -- | Convert an 'ObjSpec' into a 'Parser' provided a constructor
 -- function for defining 'JsonReadable' instances.
 runSpec :: HVectElim ts x -> ObjSpec ts -> Parser x
-runSpec mkVal spec =
-    do let (mkTyVect, kv) = compileSpec spec
-       !hm <- readObject kv
+runSpec mkVal spec = runCompiledSpec mkVal (compileSpec spec)
+
+-- | Convert a 'CompiledSpec' into a 'Parser' provided a constructor
+-- function for defining 'JsonReadable' instances.
+runCompiledSpec :: HVectElim ts x -> CompiledSpec Parser ts -> Parser x
+runCompiledSpec mkVal (CompiledSpec mkTyVect kv) =
+    do !hm <- readObject kv
        !vect <- mkTyVect hm
        return $! uncurry mkVal vect
+{-# INLINE runCompiledSpec #-}
