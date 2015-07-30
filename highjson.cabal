@@ -36,7 +36,7 @@ library
                        buffer-builder >=0.2.4
   hs-source-dirs:      src
   c-sources:           cbits/unescape_string.c
-  cc-options: -O2 -Wall
+  cc-options:          -Wall
   default-language:    Haskell2010
 
 test-suite highjson-tests
