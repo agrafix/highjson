@@ -1,9 +1,9 @@
 #include <stdlib.h>
 
-void bs_json_unescape(unsigned long length, int *error, char *bsIn, char *bsOut);
+void bs_json_unescape(const unsigned long length, int *error, char *bsIn, char *bsOut);
 
-inline void private_parse_hex(char a, char b, char c, char d, int *number, short *error) {
-    char hex[5] = { a, b, c, d, '\0' };
+inline void private_parse_hex(const char a, const char b, const char c, const char d, int *number, short *error) {
+    const char hex[5] = { a, b, c, d, '\0' };
     char *internalError;
     *number = (int)strtol(hex, &internalError, 16);
     if (*internalError != '\0') {
@@ -30,18 +30,18 @@ inline void private_parse_hex(char a, char b, char c, char d, int *number, short
         OUT = (char)((N & 0x3f) | 0x80); \
     }
 
-void bs_json_unescape(unsigned long length, int *error, char *bsIn, char *bsOut)
+void bs_json_unescape(const unsigned long length, int *error, char *bsIn, char *bsOut)
 {
-    unsigned long ptr = 0;
+    register unsigned long ptr = 0;
     while (ptr < length) {
-        char ch = *bsIn++;
+        const char ch = *bsIn++;
         ptr++;
         if (ch == '\\') {
             if (ptr >= length) {
                 *error = 1;
                 return;
             }
-            char nextCh = *bsIn++;
+            const char nextCh = *bsIn++;
             ptr++;
             switch (nextCh) {
             case '\\':
@@ -76,7 +76,7 @@ void bs_json_unescape(unsigned long length, int *error, char *bsIn, char *bsOut)
                 ptr += 4;
                 int number = 0;
                 short hexError = 0;
-                char a = *bsIn++; char b = *bsIn++; char c = *bsIn++; char d = *bsIn++;
+                const char a = *bsIn++; const char b = *bsIn++; const char c = *bsIn++; const char d = *bsIn++;
                 private_parse_hex(a, b, c, d, &number, &hexError);
                 if (hexError == 1) {
                     *error = 4;
@@ -100,14 +100,14 @@ void bs_json_unescape(unsigned long length, int *error, char *bsIn, char *bsOut)
                     }
                     int numberB = 0;
                     short hexErrorB = 0;
-                    char ai = *bsIn++; char bi = *bsIn++; char ci = *bsIn++; char di = *bsIn++;
+                    const char ai = *bsIn++; const char bi = *bsIn++; const char ci = *bsIn++; const char di = *bsIn++;
                     private_parse_hex(ai, bi, ci, di, &numberB, &hexErrorB);
                     if (hexErrorB == 1) {
                         *error = 8;
                         return;
                     }
                     if (numberB >= 0xdc00 && numberB <= 0xdfff) {
-                        int r = ((number - 0xdc00) << 10) + (numberB - 0xdc00) + 0x10000;
+                        const int r = ((number - 0xdc00) << 10) + (numberB - 0xdc00) + 0x10000;
                         UTF8_CHAR(r, *bsOut++);
                     } else {
                         *error = 9;
