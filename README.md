@@ -9,7 +9,12 @@ highjson
 
 Hackage: [highjson](http://hackage.haskell.org/package/highjson)
 
-Low boilerplate, easy to use and very fast Haskell JSON serialisation and parsing. **WARNING: Work in progress!**
+ **WARNING: Work in progress!**
+
+Low boilerplate, easy to use and very fast Haskell JSON serialisation and
+parsing without the help of TemplateHaskell or Generics. Fast parsing is
+achieved by trying to avoid intermediate data structures and c string
+decoding, fast serialisation is powered by [buffer-builder](https://github.com/chadaustin/buffer-builder/).
 
 ## Usage
 
@@ -53,9 +58,8 @@ For more usage examples check the tests.
 
 ## Todo
 
-* Implement proper string parsing (handle escape charaters)
-* Write more tests
-* Generate typescript interfaces from object specs
+* Generate typescript / Elm interfaces from object specs
+* Write more tests (always a good idea)
 * ...
 
 ## Benchmarks
@@ -64,9 +68,9 @@ To run the benchmarks, use `cabal bench`. Current results on my MacBook Pro:
 
 ```
 $ cabal bench
-Preprocessing library highjson-0.2.0.0...
-In-place registering highjson-0.2.0.0...
-Preprocessing benchmark 'highjson-benchmarks' for highjson-0.2.0.0...
+Preprocessing library highjson-0.2.0.3...
+In-place registering highjson-0.2.0.3...
+Preprocessing benchmark 'highjson-benchmarks' for highjson-0.2.0.3...
 Running 1 benchmarks...
 Benchmark highjson-benchmarks: RUNNING...
 benchmarking twitter/aeson

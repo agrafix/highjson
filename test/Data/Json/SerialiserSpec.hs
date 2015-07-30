@@ -1,12 +1,12 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Data.Json.SerialiserSpec where
 
 import Data.Json.Serialiser
 
 import Data.Typeable
-import qualified Data.Text as T
 import Test.Hspec
+import qualified Data.Text as T
 
 data SomeDummy
    = SomeDummy

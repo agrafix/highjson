@@ -19,8 +19,8 @@ where
 
 import Data.HVect
 import Data.Typeable
-import qualified Data.Json.Serialiser as S
 import qualified Data.Json.Parser as P
+import qualified Data.Json.Serialiser as S
 
 -- | Describes JSON parsing and serialisation of a Haskell type
 data JsonSpec k (ts :: [*])

@@ -4,12 +4,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 module Data.Json.Parser
     ( -- * Parsing from different types
       parseJsonBs, parseJsonBsl, parseJsonT
@@ -27,7 +27,6 @@ where
 import Control.Applicative
 import Control.Monad
 import Data.Attoparsec.ByteString.Char8
-import qualified Data.Attoparsec.ByteString as ABS
 import Data.HVect
 import Data.Int
 import Data.Maybe
@@ -35,18 +34,19 @@ import Data.Scientific hiding (scientific)
 import Data.String
 import Data.Typeable
 import Data.Word
-import Foreign.C.Types
 import Foreign.C.String
-import Foreign.Marshal.Alloc
-import Foreign.Storable
+import Foreign.C.Types
 import Foreign.ForeignPtr
+import Foreign.Marshal.Alloc
 import Foreign.Ptr
-import System.IO.Unsafe (unsafePerformIO)
+import Foreign.Storable
 import Prelude hiding (uncurry, take)
+import System.IO.Unsafe (unsafePerformIO)
+import qualified Data.Attoparsec.ByteString as ABS
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Unsafe as BS
 import qualified Data.ByteString.Internal as BS
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Unsafe as BS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T

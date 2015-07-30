@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 
 void bs_json_unescape(unsigned long length, int *error, char *bsIn, char *bsOut);
 
