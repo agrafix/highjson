@@ -2,6 +2,7 @@ language: haskell
 env:
 - GHCVER=7.8.4
 - GHCVER=7.10.2
+- GHCVER=8.0.1
 - GHCVER=head
 matrix:
   allow_failures:
@@ -37,7 +38,7 @@ deploy:
   username: AlexanderThiemann
   skip_cleanup: true
   on:
-    condition: $GHCVER = 7.8.4
+    condition: $GHCVER = 8.0.1
     tags: true
   password:
     secure: ZuNElxRAMjfp9i2OevdAVuQKfr7MN1lUQNmXRrGUrYKQNl6uedSWxMinDcTNfuPNoPdTqSM82j3JM3RJrEmyXuKVfR2vH4kcbYkHVwgk2OqTDz/yO3WNT3xcSTdWYbIw/meTv3j0HNoCLwJnIhLotQpEeefm6RR12zvr6RBPu1/4k56JQP7Cc4bHtzhMybMV+ijyU3mj5UOSCmPw4oXUBmU1SC24xfAn5X8OUfeJV2ksgfv74mwJSTEkPSAuMczc6nxIaqnUQO+V4pwwyhHkNovMcb+YU2G+1yBFB9D3NPOIR8MCJT2o9x7CGGph3k5CTDbpuyARgdUE+t7IWDWCq+OrH/9j9x7mkxZgl+N2Qn2gCK4j37Sw1uFkyjMc3qPImsR3GOHl0VCKdFj9Efd3dHWhKtX9Nyoc9ldTO/l53XQDlXiPuwLpDTMdsSA5+V1ifJDP7UcrtMhggTF2msMoOCRDfoPT579H6K4GDIVCLpsA3V37ZepxPFZVxzJmBix73FaGtMWXLcQhAY/dbMWMqBY8N5WAzQwu8t7FphU8lGK2OAzbtlI/tnxSmIPDENTesJm42QYX3dcxIV5IReunqNEZUpxwt0eICjy7j8jAJ5EgVRiHEMB/cV4pD2/fDKzSuQUZTDOSt94M1uzO5I/gZ/NWN5VZI80PSD8OlcrC3Yk=
