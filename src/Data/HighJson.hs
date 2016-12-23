@@ -2,7 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeOperators #-}
-module Data.Json
+module Data.HighJson
     ( -- * DSL to define JSON structure
       JsonSpec(..), FieldSpec(..), FieldKey, P.reqKey, P.optKey, P.TypedKey
     , (.=), (.=?)
@@ -10,17 +10,15 @@ module Data.Json
     , JsonSumSpec(..), (P..->), (P.<||>), (S..<-)
     , -- * Make parsers and serialisers from spec
       makeParser, makeSerialiser, makeSumParser, makeSumSerialiser
-    , S.ToJson(..), P.JsonReadable(..)
-    , -- * Run parsers / serialisers
-      P.parseJsonBs, P.parseJsonBsl, P.parseJsonT
-    , S.serialiseJsonBs, S.serialiseJsonBsl, S.serialiseJsonT
+    , S.ToJSON(..), P.FromJSON(..)
     )
 where
 
 import Data.HVect
 import Data.Typeable
-import qualified Data.Json.Parser as P
-import qualified Data.Json.Serialiser as S
+import qualified Data.HighJson.Parser as P
+import qualified Data.HighJson.Serialiser as S
+import qualified Data.Text as T
 
 -- | Describes JSON parsing and serialisation of a Haskell type
 data JsonSpec k (ts :: [*])
@@ -32,31 +30,37 @@ data JsonSpec k (ts :: [*])
 -- | Describes JSON parsing and serialisation of a list of fields
 data FieldSpec k (ts :: [*]) where
     EmptySpec :: FieldSpec k '[]
-    (:+:) :: (S.ToJson t, P.JsonReadable t, Typeable t) => !(FieldKey k t) -> !(FieldSpec k ts) -> FieldSpec k (t ': ts)
+    (:+:) :: (S.ToJSON t, P.FromJSON t, Typeable t) => !(FieldKey k t) -> !(FieldSpec k ts) -> FieldSpec k (t ': ts)
 
 infixr 5 :+:
 
 -- | Describes a json key
 data FieldKey k t
    = FieldKey
-   { fk_tk :: !(P.TypedKey t)
-   , fk_sk :: !(S.SpecKey k t)
+   { _fk_tk :: !(P.TypedKey t)
+   , _fk_sk :: !(S.SpecKey k t)
    }
 
 -- | Construct a 'FieldKey' mapping a json key to a getter function
-(.=) :: (S.ToJson t, P.JsonReadable t, Typeable t) => P.TypedKey t -> (k -> t) -> FieldKey k t
-tk .= getter = FieldKey tk ((P.typedKeyKey tk) S..: getter)
+(.=) :: P.FromJSON t => T.Text -> (k -> t) -> FieldKey k t
+key .= getter =
+    FieldKey tk ((P.typedKeyKey tk) S..: getter)
+    where
+      tk = P.reqKey key
 {-# INLINE (.=) #-}
 
 -- | Construct a 'FieldKey' mapping a json key to a getter function of
 -- a 'Maybe' type. This allows to omit the key when generating json instead of
 -- setting it to null.
-(.=?) :: (S.ToJson t, P.JsonReadable t, Typeable t) => P.TypedKey (Maybe t) -> (k -> Maybe t) -> FieldKey k (Maybe t)
-tk .=? getter = FieldKey tk ((P.typedKeyKey tk) S..:? getter)
+(.=?) :: P.FromJSON t => T.Text -> (k -> Maybe t) -> FieldKey k (Maybe t)
+key .=? getter =
+    FieldKey tk ((P.typedKeyKey tk) S..:? getter)
+    where
+      tk = P.optKey key
 {-# INLINE (.=?) #-}
 
--- | Construct a 'P.Parser' from 'JsonSpec' to implement 'P.JsonReadable' instances
-makeParser :: JsonSpec k ts -> P.Parser k
+-- | Construct a 'P.Parser' from 'JsonSpec' to implement 'P.FromJSON' instances
+makeParser :: JsonSpec k ts -> S.Value -> P.Parser k
 makeParser spec = P.runParseSpec $ (j_constr spec) P.:$: (mkObjSpec $ j_fields spec)
 {-# INLINE makeParser #-}
 
@@ -64,7 +68,7 @@ mkObjSpec :: FieldSpec k ts -> P.ObjSpec ts
 mkObjSpec EmptySpec = P.ObjSpecNil
 mkObjSpec (FieldKey k _ :+: xs) = k P.:&&: mkObjSpec xs
 
--- | Construct a function from 'JsonSpec' to implement 'S.ToJson' instances
+-- | Construct a function from 'JsonSpec' to implement 'S.ToJSON' instances
 makeSerialiser :: JsonSpec k ts -> k -> S.Value
 makeSerialiser spec = S.runSerSpec (S.SingleConstr $ mkSerSpec (j_fields spec))
 {-# INLINE makeSerialiser #-}
@@ -82,12 +86,12 @@ data JsonSumSpec k
    , js_serialiser :: !(k -> S.KeyedSerialiser k)
    }
 
--- | Construct a 'P.Parser' from 'JsonSumSpec' to implement 'P.JsonReadable' instances
-makeSumParser :: JsonSumSpec k -> P.Parser k
+-- | Construct a 'P.Parser' from 'JsonSumSpec' to implement 'P.FromJSON' instances
+makeSumParser :: JsonSumSpec k -> S.Value -> P.Parser k
 makeSumParser = P.runParseSpec . js_parser
 {-# INLINE makeSumParser #-}
 
--- | Construct a function from 'JsonSumSpec' to implement 'S.ToJson' instances
+-- | Construct a function from 'JsonSumSpec' to implement 'S.ToJSON' instances
 makeSumSerialiser :: JsonSumSpec k -> k -> S.Value
 makeSumSerialiser s = S.runSerSpec (S.MultiConstr (js_serialiser s))
 {-# INLINE makeSumSerialiser #-}

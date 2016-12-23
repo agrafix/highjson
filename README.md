@@ -12,9 +12,7 @@ Hackage: [highjson](http://hackage.haskell.org/package/highjson)
  **WARNING: Work in progress!**
 
 Low boilerplate, easy to use and very fast Haskell JSON serialisation and
-parsing without the help of TemplateHaskell or Generics. Fast parsing is
-achieved by trying to avoid intermediate data structures and c string
-decoding, fast serialisation is powered by [buffer-builder](https://github.com/chadaustin/buffer-builder/).
+parsing without the help of TemplateHaskell or Generics built on top of [aeson](http://hackage.haskell.org/package/aeson).
 
 ## Usage
 
@@ -25,7 +23,6 @@ data SomeDummy
    { sd_int :: Int
    , sd_bool :: Bool
    , sd_text :: T.Text
-   , sd_either :: Either Bool T.Text
    , sd_maybe :: Maybe Int
    } deriving (Show, Eq)
 
@@ -34,19 +31,18 @@ someDummySpec =
     "int" .= sd_int
     :+: "bool" .= sd_bool
     :+: "text" .= sd_text
-    :+: "either" .= sd_either
     :+: "maybe" .=? sd_maybe
     :+: EmptySpec
 
-instance ToJson SomeDummy where
-    toJson = makeSerialiser someDummySpec
+instance ToJSON SomeDummy where
+    toJSON = makeSerialiser someDummySpec
 
-instance JsonReadable SomeDummy where
-    readJson = makeParser someDummySpec
+instance FromJSON SomeDummy where
+    parseJSON = makeParser someDummySpec
 
 test =
-    parseJsonBs "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"either\": false}"
-        == Right (SomeDummy 34 True "Teext" (Left False) Nothing)
+    decodeEither "{\"int\": 34, \"text\": \"Teext\", \"bool\": true}"
+        == Right (SomeDummy 34 True "Teext" Nothing)
 ```
 
 For more usage examples check the tests.
@@ -58,52 +54,43 @@ For more usage examples check the tests.
 
 ## Todo
 
-* Generate typescript / Elm interfaces from object specs
+* Generate Swagger / TypeScript / Elm interfaces from object specs
 * Write more tests (always a good idea)
 * ...
 
 ## Benchmarks
 
-To run the benchmarks, use `cabal bench`. Current results on my MacBook Pro:
+Current results on my MacBook Pro:
 
 ```
-$ cabal bench
-Preprocessing library highjson-0.2.0.3...
-In-place registering highjson-0.2.0.3...
-Preprocessing benchmark 'highjson-benchmarks' for highjson-0.2.0.3...
-Running 1 benchmarks...
-Benchmark highjson-benchmarks: RUNNING...
-benchmarking twitter/aeson
-time                 2.080 ms   (2.038 ms .. 2.123 ms)
-                     0.997 R²   (0.995 R² .. 0.998 R²)
-mean                 2.086 ms   (2.058 ms .. 2.116 ms)
-std dev              100.5 μs   (86.53 μs .. 117.8 μs)
+benchmarking twitter/aeson/generic
+time                 2.512 ms   (2.473 ms .. 2.554 ms)
+                     0.996 R²   (0.993 R² .. 0.998 R²)
+mean                 2.494 ms   (2.452 ms .. 2.535 ms)
+std dev              137.8 μs   (112.7 μs .. 163.9 μs)
+variance introduced by outliers: 38% (moderately inflated)
+
+benchmarking twitter/aeson/highjson
+time                 2.024 ms   (1.980 ms .. 2.068 ms)
+                     0.996 R²   (0.994 R² .. 0.998 R²)
+mean                 2.020 ms   (1.990 ms .. 2.047 ms)
+std dev              98.81 μs   (84.63 μs .. 120.6 μs)
 variance introduced by outliers: 34% (moderately inflated)
 
-benchmarking twitter/highjson
-time                 2.050 ms   (2.000 ms .. 2.099 ms)
-                     0.996 R²   (0.993 R² .. 0.998 R²)
-mean                 2.043 ms   (2.017 ms .. 2.092 ms)
-std dev              120.0 μs   (75.03 μs .. 202.7 μs)
+benchmarking twitter-jp/aeson/generic
+time                 2.760 ms   (2.691 ms .. 2.842 ms)
+                     0.995 R²   (0.992 R² .. 0.997 R²)
+mean                 2.795 ms   (2.754 ms .. 2.857 ms)
+std dev              169.6 μs   (131.0 μs .. 251.8 μs)
 variance introduced by outliers: 42% (moderately inflated)
 
-benchmarking twitter-jp/aeson
-time                 2.494 ms   (2.447 ms .. 2.547 ms)
-                     0.996 R²   (0.992 R² .. 0.998 R²)
-mean                 2.486 ms   (2.454 ms .. 2.528 ms)
-std dev              119.5 μs   (97.64 μs .. 149.2 μs)
-variance introduced by outliers: 31% (moderately inflated)
-
-benchmarking twitter-jp/highjson
-time                 2.355 ms   (2.318 ms .. 2.394 ms)
-                     0.997 R²   (0.996 R² .. 0.999 R²)
-mean                 2.360 ms   (2.331 ms .. 2.392 ms)
-std dev              101.7 μs   (79.40 μs .. 147.6 μs)
-variance introduced by outliers: 27% (moderately inflated)
-
-Benchmark highjson-benchmarks: FINISH
+benchmarking twitter-jp/aeson/highjson
+time                 2.250 ms   (2.202 ms .. 2.297 ms)
+                     0.996 R²   (0.994 R² .. 0.998 R²)
+mean                 2.227 ms   (2.193 ms .. 2.266 ms)
+std dev              112.6 μs   (89.98 μs .. 155.8 μs)
+variance introduced by outliers: 35% (moderately inflated)
 ```
 
 The benchmarks are derived from [aeson](https://github.com/bos/aeson)'s
-twitter-json-parsing benchmarks and should probably move there when this library is in a
-more complete state.
+twitter-json-parsing benchmarks.

@@ -2,25 +2,30 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Data.Json.ParserSpec where
 
-import Data.Json.Parser
+import Data.HighJson.Parser
 
-import Control.Applicative
+import Data.Aeson (eitherDecode)
 import Data.Typeable
-import qualified Data.Text as T
 import Test.Hspec
+import qualified Data.Text as T
 
 data SomeDummy
    = SomeDummy
    { sd_int :: Int
    , sd_bool :: Bool
    , sd_text :: T.Text
-   , sd_either :: Either Bool T.Text
    , sd_maybe :: Maybe Int
    } deriving (Show, Eq)
 
-instance JsonReadable SomeDummy where
-    readJson =
-        runParseSpec $ SomeDummy :$: "int" :&&: "bool" :&&: "text" :&&: "either" :&&: "maybe" :&&: ObjSpecNil
+instance FromJSON SomeDummy where
+    parseJSON =
+        runParseSpec $
+        SomeDummy
+        :$: reqKey "int"
+        :&&: reqKey"bool"
+        :&&: reqKey"text"
+        :&&: optKey "maybe"
+        :&&: ObjSpecNil
 
 data SomeNested
    = SomeNested
@@ -28,38 +33,38 @@ data SomeNested
    , sn_obj :: Maybe SomeNested
    } deriving (Show, Eq, Typeable)
 
-instance JsonReadable SomeNested where
-    readJson =
-        runParseSpec $ SomeNested :$: "list" :&&: "obj" :&&: ObjSpecNil
+instance FromJSON SomeNested where
+    parseJSON =
+        runParseSpec $ SomeNested :$: reqKey "list" :&&: optKey "obj" :&&: ObjSpecNil
 
 data Foo
    = Foo
     { f_fooVal :: Int
     } deriving (Show, Eq)
 
-instance JsonReadable Foo where
-    readJson =
-        runParseSpec $ Foo :$: "value" :&&: ObjSpecNil
+instance FromJSON Foo where
+    parseJSON =
+        runParseSpec $ Foo :$: reqKey "value" :&&: ObjSpecNil
 
 data Bar
    = Bar
     { b_barVal :: Int
     } deriving (Show, Eq)
 
-instance JsonReadable Bar where
-    readJson =
-        runParseSpec $ Bar :$: "value" :&&: ObjSpecNil
+instance FromJSON Bar where
+    parseJSON =
+        runParseSpec $ Bar :$: reqKey "value" :&&: ObjSpecNil
 
 data SumType
    = SumFoo Foo
    | SumBar Bar
    deriving (Show, Eq)
 
-instance JsonReadable SumType where
-    readJson =
+instance FromJSON SumType where
+    parseJSON =
         runParseSpec $
-        "foo" .-> (SumFoo <$> readJson)
-        <||> "bar" .-> (SumBar <$> readJson)
+        "foo" .-> SumFoo
+        <||> "bar" .-> SumBar
 
 data ParamType k
    = ParamType
@@ -67,37 +72,36 @@ data ParamType k
    , pt_val :: T.Text
    } deriving (Show, Eq)
 
-instance (Typeable k, JsonReadable k) => JsonReadable (ParamType k) where
-    readJson =
-        runParseSpec $ ParamType :$: "key" :&&: "val" :&&: ObjSpecNil
+instance (Typeable k, FromJSON k) => FromJSON (ParamType k) where
+    parseJSON =
+        runParseSpec $ ParamType :$: reqKey "key" :&&: reqKey "val" :&&: ObjSpecNil
 
 spec :: Spec
 spec =
     describe "Parser" $
     do it "Handles custom types correctly" $
-            do parseJsonBs "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"either\": false}"
-                               `shouldBe` Right (SomeDummy 34 True "Teext" (Left False) Nothing)
-               parseJsonBs "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"either\": \"ok\", \"maybe\": 42}"
-                               `shouldBe` Right (SomeDummy 34 True "Teext" (Right "ok") (Just 42))
+            do eitherDecode "{\"int\": 34, \"text\": \"Teext\", \"bool\": true}"
+                               `shouldBe` Right (SomeDummy 34 True "Teext" Nothing)
+               eitherDecode "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"maybe\": 42}"
+                               `shouldBe` Right (SomeDummy 34 True "Teext" (Just 42))
        it "Handles extra key correctly" $
-            parseJsonBs "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"either\": false, \"extraKey\": false}"
-                               `shouldBe` Right (SomeDummy 34 True "Teext" (Left False) Nothing)
+            eitherDecode "{\"int\": 34, \"text\": \"Teext\", \"bool\": true, \"extraKey\": false}"
+                               `shouldBe` Right (SomeDummy 34 True "Teext" Nothing)
        it "Handles nested types correctly" $
-           parseJsonBs "{\"list\": [{\"list\": []}], \"obj\": {\"list\": []}}"
+           eitherDecode "{\"list\": [{\"list\": []}], \"obj\": {\"list\": []}}"
                            `shouldBe` Right (SomeNested [SomeNested [] Nothing] (Just $ SomeNested [] Nothing))
        it "Handles parametrized types correctly" $
-           parseJsonBs "{\"key\": true, \"val\": \"hi\"}"
+           eitherDecode "{\"key\": true, \"val\": \"hi\"}"
                            `shouldBe` Right (ParamType True "hi")
        it "Parses bools correctly" $
-            do parseJsonBs "true" `shouldBe` Right True
-               parseJsonBs "false" `shouldBe` Right False
+            do eitherDecode "true" `shouldBe` Right True
+               eitherDecode "false" `shouldBe` Right False
        it "Parses strings correctly" $
-            do parseJsonBs "\"Hello world\"" `shouldBe` Right ("Hello world" :: T.Text)
-               parseJsonBs "\"Hello \\\"world\\\"\"" `shouldBe` Right ("Hello \"world\"" :: T.Text)
-               parseJsonBs "\"Hello \\nworld\"" `shouldBe` Right ("Hello \nworld" :: T.Text)
-               parseJsonBs "\"\\u0041 Hello \\\"world\\\"\"" `shouldBe` Right ("A Hello \"world\"" :: T.Text)
-               parseJsonBs "\"\\u306e Hello \\\"world\\\"\"" `shouldBe` Right ("\12398 Hello \"world\"" :: T.Text)
-               parseJsonBs "\"\\uD834\\uDD1E\"" `shouldBe` Right ("\RS" :: T.Text)
+            do eitherDecode "\"Hello world\"" `shouldBe` Right ("Hello world" :: T.Text)
+               eitherDecode "\"Hello \\\"world\\\"\"" `shouldBe` Right ("Hello \"world\"" :: T.Text)
+               eitherDecode "\"Hello \\nworld\"" `shouldBe` Right ("Hello \nworld" :: T.Text)
+               eitherDecode "\"\\u0041 Hello \\\"world\\\"\"" `shouldBe` Right ("A Hello \"world\"" :: T.Text)
+               eitherDecode "\"\\u306e Hello \\\"world\\\"\"" `shouldBe` Right ("\12398 Hello \"world\"" :: T.Text)
        it "Handles sum types correctly" $
-           do parseJsonBs "{\"foo\": {\"value\": 42}}" `shouldBe` Right (SumFoo (Foo 42))
-              parseJsonBs "{\"bar\": {\"value\": 42}}" `shouldBe` Right (SumBar (Bar 42))
+           do eitherDecode "{\"foo\": {\"value\": 42}}" `shouldBe` Right (SumFoo (Foo 42))
+              eitherDecode "{\"bar\": {\"value\": 42}}" `shouldBe` Right (SumBar (Bar 42))
