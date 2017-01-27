@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeOperators #-}
 module Data.HighJson
     ( -- * DSL to define JSON structure
-      JsonSpec(..), FieldSpec(..), FieldKey, P.reqKey, P.optKey, P.TypedKey
+      JsonSpec(..), FieldSpec(..), FieldKey(..), P.reqKey, P.optKey, P.TypedKey
     , (.=), (.=?)
       -- * DSL to define JSON structure for sum types
     , JsonSumSpec(..), (P..->), (P.<||>), (S..<-)
@@ -37,8 +37,8 @@ infixr 5 :+:
 -- | Describes a json key
 data FieldKey k t
    = FieldKey
-   { _fk_tk :: !(P.TypedKey t)
-   , _fk_sk :: !(S.SpecKey k t)
+   { fk_tk :: !(P.TypedKey t)
+   , fk_sk :: !(S.SpecKey k t)
    }
 
 -- | Construct a 'FieldKey' mapping a json key to a getter function

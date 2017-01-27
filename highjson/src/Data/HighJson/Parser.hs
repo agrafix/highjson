@@ -12,7 +12,7 @@ module Data.HighJson.Parser
       -- * DSL to easily create parser for custom Haskell types
     , runParseSpec, ObjSpec(..), ParseSpec(..), KeyedConstr, (.->), (<||>)
     , ConstrTagger, ResultType
-    , TypedKey, reqKey, optKey, typedKeyKey
+    , TypedKey(..), reqKey, optKey, typedKeyKey
       -- * Low level JSON parsing helpers
     , Parser
     )

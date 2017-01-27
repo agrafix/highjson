@@ -7,7 +7,7 @@ module Data.HighJson.Serialiser
       ToJSON(..), Value(..)
       -- * DSL to easily create serialiser for custom Haskell types
     , runSerSpec, SerSpec(..), (.<-), KeyedSerialiser, SerObjSpec(..)
-    , SpecKey, (.:), (.:?)
+    , SpecKey(..), (.:), (.:?)
     )
 where
 
