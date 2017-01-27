@@ -21,6 +21,7 @@ import qualified Data.Text as T
 data SpecKey k t
    = SpecKey
    { k_key :: !T.Text
+   , k_req :: !Bool
    , k_getVal :: !(k -> Maybe t)
    }
 
@@ -29,6 +30,7 @@ data SpecKey k t
 k .: getter =
     SpecKey
     { k_key = k
+    , k_req = True
     , k_getVal = Just . getter
     }
 {-# INLINE (.:) #-}
@@ -38,7 +40,7 @@ k .: getter =
 -- setting it to null.
 (.:?) :: T.Text -> (k -> Maybe t) -> SpecKey k (Maybe t)
 k .:? getter =
-    SpecKey k $ \obj ->
+    SpecKey k False $ \obj ->
         let val = getter obj
         in case val of
              Nothing -> Nothing
@@ -83,7 +85,7 @@ buildSpec :: SerObjSpec k ts -> k -> [A.Pair]
 buildSpec spec input =
     case spec of
       SerObjSpecNil -> mempty
-      (SpecKey key getVal :&&&: xs) ->
+      (SpecKey key _ getVal :&&&: xs) ->
           case getVal input of
             Nothing -> buildSpec xs input
             Just v -> (key A..= v) : buildSpec xs input
