@@ -79,6 +79,7 @@ data SomeSumType
    = SomeDummyT SomeDummy
    | SomeInt Int
    | SomeBool Bool
+   | SomeEnum
    deriving (Show, Eq, Typeable)
 
 someSumSpec :: JsonSumSpec SomeSumType
@@ -88,12 +89,14 @@ someSumSpec =
             "dummy" .-> SomeDummyT
        <||> "int" .-> SomeInt
        <||> "bool" .-> SomeBool
+       <||> "enum" .-> \() -> SomeEnum
     , js_serialiser =
           \v ->
               case v of
                 SomeDummyT d -> "dummy" .<- d
                 SomeInt i -> "int" .<- i
                 SomeBool b -> "bool" .<- b
+                SomeEnum -> "enum" .<- ()
     }
 
 instance ToJSON SomeSumType where

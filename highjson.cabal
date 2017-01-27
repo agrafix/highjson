@@ -8,7 +8,7 @@ license:             MIT
 license-file:        LICENSE
 author:              Alexander Thiemann <mail@athiemann.net>
 maintainer:          Alexander Thiemann <mail@athiemann.net>
-copyright:           (c) 2015 - 2016 Alexander Thiemann
+copyright:           (c) 2015 - 2017 Alexander Thiemann
 category:            Text, Web, JSON
 build-type:          Simple
 stability:           experimental
