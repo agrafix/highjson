@@ -16,6 +16,7 @@ parsing without the help of TemplateHaskell or Generics built on top of [aeson](
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 data SomeDummy
    = SomeDummy
    { sd_int :: Int
@@ -25,7 +26,7 @@ data SomeDummy
    , sd_maybe :: Maybe Int
    } deriving (Show, Eq)
 
-someDummySpec :: HighSpec SomeDummy '[Int, Bool, T.Text, Either Bool T.Text, Maybe Int]
+someDummySpec :: HighSpec SomeDummy _
 someDummySpec =
     recSpec "Some Dummy" Nothing SomeDummy $
     "int" .= sd_int
