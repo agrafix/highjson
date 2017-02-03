@@ -1,33 +1,47 @@
-language: c
-env:
- - CABALVER=1.22 GHCVER=7.10.1
- - CABALVER=1.22 GHCVER=7.10.2
- - CABALVER=1.24 GHCVER=8.0.1
+language: generic
+sudo: false
+
+cache:
+  directories:
+    - $HOME/.stack
+    - $HOME/.cabal
+    - $HOME/.ghc
+
+matrix:
+  fast_finish: true
+  include:
+    - env: BUILD=stack STACK_BUILD_MODE="test" STACK_BUILD_ARGS="--bench --no-run-benchmarks" STACK_ARGS="" STACK_YAML=stack.yaml
+      compiler: ": #stack 8.0.1"
+      addons: {apt: {packages: [libgmp-dev]}}
+    - env: BUILD=stack STACK_BUILD_MODE="test" STACK_BUILD_ARGS="--bench --no-run-benchmarks" STACK_ARGS="--resolver nightly" STACK_YAML=stack.yaml
+      compiler: ": #stack 8.0.2"
+      addons: {apt: {packages: [libgmp-dev]}}
+    - env: BUILD=cabal CABALVER=1.24 GHCVER=8.0.1
+      compiler: ": #GHC 8.0.1"
+      addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.1], sources: [hvr-ghc]}}
+
 before_install:
- - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
- - travis_retry sudo apt-get update
- - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER
- - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+  - chmod +x scripts/ci.sh
+  - mkdir -p ~/.local/bin
+  - unset CC
+  - case "$BUILD" in
+       stack)
+         export PATH=$HOME/.local/bin:/opt/ghc/$GHCVER/bin:$PATH;
+         travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack';;
+       cabal)
+         export PATH=$HOME/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH;;
+    esac
 
 install:
- - cabal --version
- - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
- - travis_retry cabal update
- - cabal install --only-dependencies --enable-tests --enable-benchmarks
+  - case "$BUILD" in
+      cabal)
+        travis_retry cabal update -v;;
+    esac
+  - scripts/ci.sh "install"
 
 script:
- - if [ -f configure.ac ]; then autoreconf -i; fi
- - cabal configure --enable-tests --enable-benchmarks -v2
+  - scripts/ci.sh "script"
 
- - cabal build
-
- - cabal test
- - cabal check
-
- - cabal sdist
-
- - SRC_TGZ=$(cabal info . | awk '{print $2;exit}').tar.gz &&
-   (cd dist && cabal install --force-reinstalls "$SRC_TGZ")
 
 deploy:
   provider: hackage
