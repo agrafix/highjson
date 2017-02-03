@@ -9,8 +9,6 @@ highjson
 
 Hackage: [highjson](http://hackage.haskell.org/package/highjson)
 
- **WARNING: Work in progress!**
-
 Low boilerplate, easy to use and very fast Haskell JSON serialisation and
 parsing without the help of TemplateHaskell or Generics built on top of [aeson](http://hackage.haskell.org/package/aeson).
 
@@ -23,22 +21,26 @@ data SomeDummy
    { sd_int :: Int
    , sd_bool :: Bool
    , sd_text :: T.Text
+   , sd_either :: Either Bool T.Text
    , sd_maybe :: Maybe Int
    } deriving (Show, Eq)
 
+someDummySpec :: HighSpec SomeDummy '[Int, Bool, T.Text, Either Bool T.Text, Maybe Int]
 someDummySpec =
-    JsonSpec SomeDummy $
+    recSpec "Some Dummy" Nothing SomeDummy $
     "int" .= sd_int
     :+: "bool" .= sd_bool
     :+: "text" .= sd_text
-    :+: "maybe" .=? sd_maybe
-    :+: EmptySpec
+    :+: "either" .= sd_either
+    :+: "maybe" .= sd_maybe
+    :+: RFEmpty
 
 instance ToJSON SomeDummy where
-    toJSON = makeSerialiser someDummySpec
+    toJSON = jsonSerializer someDummySpec
+    toEncoding = jsonEncoder someDummySpec
 
 instance FromJSON SomeDummy where
-    parseJSON = makeParser someDummySpec
+    parseJSON = jsonParser someDummySpec
 
 test =
     decodeEither "{\"int\": 34, \"text\": \"Teext\", \"bool\": true}"
