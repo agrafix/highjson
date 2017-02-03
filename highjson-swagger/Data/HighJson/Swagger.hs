@@ -25,7 +25,7 @@ type DeclM = Declare (Definitions Schema)
 makeDeclareNamedSchema ::
     (AllHave ToSchema ts, AllHave ToJSON ts)
     => HighSpec k ts
-    -> Proxy k
+    -> f k
     -> DeclM NamedSchema
 makeDeclareNamedSchema spec = makeDeclareNamedSchema' spec Nothing
 
@@ -36,7 +36,7 @@ makeDeclareNamedSchema' ::
     => HighSpec k ts
     -> Maybe k
     -- ^ example value
-    -> Proxy k
+    -> f k
     -> DeclM NamedSchema
 makeDeclareNamedSchema' spec exVal _ =
     do (props, reqs) <-

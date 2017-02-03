@@ -29,6 +29,26 @@ library
   hs-source-dirs:      .
   default-language:    Haskell2010
 
+test-suite highjson-swagger-tests
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Main.hs
+  other-modules:
+                Data.HighJson.SwaggerSpec
+  build-depends:
+                QuickCheck >=2.8,
+                base,
+                highjson,
+                highjson-swagger,
+                aeson,
+                hspec >= 2.0,
+                text,
+                lens,
+                swagger2,
+                bytestring
+  default-language:    Haskell2010
+  ghc-options: -Wall -fno-warn-orphans
+
 source-repository head
   type:     git
   location: git://github.com/agrafix/highjson.git
