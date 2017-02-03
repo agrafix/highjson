@@ -55,12 +55,6 @@ For more usage examples check the tests.
 * Using cabal: `cabal install highjson`
 * From Source: `git clone https://github.com/agrafix/highjson.git && cd highjson && cabal install`
 
-## Todo
-
-* Generate Swagger / TypeScript / Elm interfaces from object specs
-* Write more tests (always a good idea)
-* ...
-
 ## Benchmarks
 
 There are benchmarks in the project and it is expected to be en par or faster than `aeson`s generic instances.
