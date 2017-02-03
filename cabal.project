@@ -1,0 +1,5 @@
+packages:
+  highjson/*.cabal
+  highjson-swagger/*.cabal
+
+benchmarks: False
