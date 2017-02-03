@@ -3,13 +3,20 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Data.HighJson2 where
+module Data.HighJson.Types
+    ( HighSpec(..)
+    , BodySpec(..)
+    , RecordFields(..), RecordField(..), RecordSpec(..)
+    , SumOptions(..), SumOption(..), SumSpec(..)
+    , jsonSerializer, jsonEncoder, jsonParser
+    )
+where
 
 import Control.Applicative
 import Control.Lens hiding ((.=))
 import Control.Monad
 import Data.Aeson
-import Data.Aeson.Types
+import Data.Aeson.Types hiding (parse)
 import Data.HVect
 import Data.Monoid
 import qualified Data.Text as T
@@ -27,7 +34,9 @@ data BodySpec a as
 
 data RecordFields t fs where
     RFEmpty :: RecordFields t '[]
-    RFField :: RecordField t f -> RecordFields t fs -> RecordFields t (f ': fs)
+    (:+:) :: RecordField t f -> RecordFields t fs -> RecordFields t (f ': fs)
+
+infixr 5 :+:
 
 data RecordField t f
     = RecordField
@@ -35,7 +44,7 @@ data RecordField t f
     , rf_jsonKey :: !T.Text
     , rf_optional :: !Bool
     , rf_jsonLoader :: Object -> T.Text -> Parser f
-    , rf_lens :: !(Lens' t f)
+    , rf_get :: !(t -> f)
     }
 
 data RecordSpec a fs
@@ -46,7 +55,9 @@ data RecordSpec a fs
 
 data SumOptions t os where
     SOEmpty :: SumOptions t '[]
-    SOOpt :: SumOption t o -> SumOptions t os -> SumOptions t (o ': os)
+    (:|:) :: SumOption t o -> SumOptions t os -> SumOptions t (o ': os)
+
+infixr 5 :|:
 
 data SumOption t o
     = SumOption
@@ -83,7 +94,7 @@ jsonSerSum (SumSpec sopts) val =
       loop flds =
           case flds of
             SOEmpty -> ([], mempty)
-            SOOpt f fs ->
+            f :|: fs ->
                 case val ^? so_prism f of
                   Just body ->
                       let pair = (so_jsonKey f, toJSON body)
@@ -98,13 +109,13 @@ jsonSerRec (RecordSpec _ rflds) val =
       loop ::
           forall fs. AllHave ToJSON fs
           => RecordFields a fs -> ([Pair], Series) -> ([Pair], Series)
-      loop flds accum@(pairs, encoding) =
+      loop flds accum@(ps, encoding) =
           case flds of
             RFEmpty -> accum
-            RFField f fs ->
-                let pair = (rf_jsonKey f, toJSON $ val ^. (rf_lens f))
-                    encoder = rf_jsonKey f .= (val ^. (rf_lens f))
-                in loop fs ((pair : pairs), encoder <> encoding)
+            f :+: fs ->
+                let pair = (rf_jsonKey f, toJSON $ rf_get f val)
+                    encoder = rf_jsonKey f .= rf_get f val
+                in loop fs ((pair : ps), encoder <> encoding)
 
 jsonParser :: AllHave FromJSON as => HighSpec a as -> Value -> Parser a
 jsonParser hs =
@@ -121,7 +132,7 @@ jsonParserRecord (RecordSpec mk rflds) obj =
       loop flds =
           case flds of
             RFEmpty -> pure HNil
-            RFField f fs ->
+            f :+: fs ->
                 let parse =
                         rf_jsonLoader f obj (rf_jsonKey f)
                 in do x <- parse
@@ -138,7 +149,7 @@ jsonParserSum name (SumSpec sopts) obj =
             SOEmpty ->
                 fail $
                 "Failed to parse as " ++ T.unpack name
-            SOOpt o os ->
+            o :|: os ->
                 let parse =
                         liftM (so_prism o #) $ obj .: so_jsonKey o
                 in parse <|> loop os

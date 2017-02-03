@@ -1,97 +1,111 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Data.HighJson
-    ( -- * DSL to define JSON structure
-      JsonSpec(..), FieldSpec(..), FieldKey(..), P.reqKey, P.optKey, P.TypedKey
-    , (.=), (.=?)
-      -- * DSL to define JSON structure for sum types
-    , JsonSumSpec(..), (P..->), (P.<||>), (S..<-)
-    , -- * Make parsers and serialisers from spec
-      makeParser, makeSerialiser, makeSumParser, makeSumSerialiser
-    , S.ToJSON(..), P.FromJSON(..)
+    ( -- * A json specification for any type
+      HighSpec(..)
+      -- * Construct specifications for records
+    , recSpec, RecordFields(..)
+      -- * Construct specifications for sum types
+    , sumSpec, SumOptions(..)
+      -- * Generate json serializers/encoders and parsers from specs
+    , jsonSerializer, jsonEncoder, jsonParser
+      -- * Specification structures
+    , BodySpec(..)
+    , RecordField(..), RecordSpec(..)
+    , SumOption(..), SumSpec(..)
     )
 where
 
-import Data.HVect
-import Data.Typeable
-import qualified Data.HighJson.Parser as P
-import qualified Data.HighJson.Serialiser as S
+import Data.HighJson.Types
+
+import Control.Lens
+import Control.Lens.TH
+import Data.Aeson ((.:), (.:?), FromJSON, ToJSON)
+import qualified Data.HVect as HV
 import qualified Data.Text as T
 
--- | Describes JSON parsing and serialisation of a Haskell type
-data JsonSpec k (ts :: [*])
-   = JsonSpec
-   { j_constr :: !(HVectElim ts k)
-   , j_fields :: !(FieldSpec k ts)
+reqField :: FromJSON f => T.Text -> T.Text -> (t -> f) -> RecordField t f
+reqField name jsonKey g =
+    RecordField
+    { rf_name = name
+    , rf_jsonKey = jsonKey
+    , rf_optional = False
+    , rf_jsonLoader = (.:)
+    , rf_get = g
+    }
+
+optField :: FromJSON f => T.Text -> T.Text -> (t -> Maybe f) -> RecordField t (Maybe f)
+optField name jsonKey g =
+    RecordField
+    { rf_name = name
+    , rf_jsonKey = jsonKey
+    , rf_optional = True
+    , rf_jsonLoader = (.:?)
+    , rf_get = g
+    }
+
+sumOpt :: T.Text -> T.Text -> Prism' t o -> SumOption t o
+sumOpt name jsonKey prism =
+    SumOption
+    { so_name = name
+    , so_jsonKey = jsonKey
+    , so_prism = prism
+    }
+
+recSpec :: T.Text -> Maybe T.Text -> HV.HVectElim flds t -> RecordFields t flds -> HighSpec t flds
+recSpec name mDesc mk fields =
+    HighSpec
+    { hs_name = name
+    , hs_description = mDesc
+    , hs_bodySpec =
+            BodySpecRecord $ RecordSpec (HV.uncurry mk) fields
+    }
+
+sumSpec :: T.Text -> Maybe T.Text -> SumOptions t flds -> HighSpec t flds
+sumSpec name mDesc opts =
+    HighSpec
+    { hs_name = name
+    , hs_description = mDesc
+    , hs_bodySpec = BodySpecSum $ SumSpec opts
+    }
+
+data SomeDummy
+   = SomeDummy
+   { sd_int :: Int
+   , sd_bool :: Bool
+   , sd_text :: T.Text
+   , sd_eitherf :: Either Bool T.Text
+   , sd_maybef :: Maybe Int
    }
 
--- | Describes JSON parsing and serialisation of a list of fields
-data FieldSpec k (ts :: [*]) where
-    EmptySpec :: FieldSpec k '[]
-    (:+:) :: (S.ToJSON t, P.FromJSON t, Typeable t) => !(FieldKey k t) -> !(FieldSpec k ts) -> FieldSpec k (t ': ts)
+makeLenses ''SomeDummy
 
-infixr 5 :+:
+dummySpec :: HighSpec SomeDummy _
+dummySpec =
+    recSpec "Some Dummy" Nothing SomeDummy $
+    reqField "Int" "int" sd_int
+    :+: reqField "Int" "bool" sd_bool
+    :+: reqField "Int" "text" sd_text
+    :+: reqField "Int" "either" sd_eitherf
+    :+: optField "Int" "maybe" sd_maybef
+    :+: RFEmpty
 
--- | Describes a json key
-data FieldKey k t
-   = FieldKey
-   { fk_tk :: !(P.TypedKey t)
-   , fk_sk :: !(S.SpecKey k t)
-   }
+data SomeSumType
+   = SomeDummyT SomeDummy
+   | SomeInt Int
+   | SomeBool Bool
+   | SomeEnum
 
--- | Construct a 'FieldKey' mapping a json key to a getter function
-(.=) :: P.FromJSON t => T.Text -> (k -> t) -> FieldKey k t
-key .= getter =
-    FieldKey tk ((P.typedKeyKey tk) S..: getter)
-    where
-      tk = P.reqKey key
-{-# INLINE (.=) #-}
+makePrisms ''SomeSumType
 
--- | Construct a 'FieldKey' mapping a json key to a getter function of
--- a 'Maybe' type. This allows to omit the key when generating json instead of
--- setting it to null.
-(.=?) :: P.FromJSON t => T.Text -> (k -> Maybe t) -> FieldKey k (Maybe t)
-key .=? getter =
-    FieldKey tk ((P.typedKeyKey tk) S..:? getter)
-    where
-      tk = P.optKey key
-{-# INLINE (.=?) #-}
-
--- | Construct a 'P.Parser' from 'JsonSpec' to implement 'P.FromJSON' instances
-makeParser :: JsonSpec k ts -> S.Value -> P.Parser k
-makeParser spec = P.runParseSpec $ (j_constr spec) P.:$: (mkObjSpec $ j_fields spec)
-{-# INLINE makeParser #-}
-
-mkObjSpec :: FieldSpec k ts -> P.ObjSpec ts
-mkObjSpec EmptySpec = P.ObjSpecNil
-mkObjSpec (FieldKey k _ :+: xs) = k P.:&&: mkObjSpec xs
-
--- | Construct a function from 'JsonSpec' to implement 'S.ToJSON' instances
-makeSerialiser :: JsonSpec k ts -> k -> S.Value
-makeSerialiser spec = S.runSerSpec (S.SingleConstr $ mkSerSpec (j_fields spec))
-{-# INLINE makeSerialiser #-}
-
-mkSerSpec :: FieldSpec k ts -> S.SerObjSpec k ts
-mkSerSpec EmptySpec = S.SerObjSpecNil
-mkSerSpec (FieldKey _ getter :+: xs) = getter S.:&&&: mkSerSpec xs
-
--- | Describes JSON parsing and serialisation of a Haskell sum type. Currently
--- the library can only guarantee matching parsers/serialisers for
--- non-sum types using 'JsonSpec'.
-data JsonSumSpec k
-   = JsonSumSpec
-   { js_parser :: !(P.ParseSpec k)
-   , js_serialiser :: !(k -> S.KeyedSerialiser k)
-   }
-
--- | Construct a 'P.Parser' from 'JsonSumSpec' to implement 'P.FromJSON' instances
-makeSumParser :: JsonSumSpec k -> S.Value -> P.Parser k
-makeSumParser = P.runParseSpec . js_parser
-{-# INLINE makeSumParser #-}
-
--- | Construct a function from 'JsonSumSpec' to implement 'S.ToJSON' instances
-makeSumSerialiser :: JsonSumSpec k -> k -> S.Value
-makeSumSerialiser s = S.runSerSpec (S.MultiConstr (js_serialiser s))
-{-# INLINE makeSumSerialiser #-}
+someSpec :: HighSpec SomeSumType _
+someSpec =
+    sumSpec "SomeSum" Nothing $
+    sumOpt "SomeDummyT" "some_dummy" _SomeDummyT
+    :|: sumOpt "SomeInt" "some_int" _SomeInt
+    :|: sumOpt "SomeBool" "some_bool" _SomeBool
+    :|: sumOpt "SomeEnum" "some_enum" _SomeEnum
+    :|: SOEmpty
