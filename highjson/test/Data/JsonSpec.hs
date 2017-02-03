@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Data.JsonSpec where
 
 import Data.HighJson
 
+import Control.Lens.TH
 import Data.Aeson (eitherDecode, encode)
 import Data.Typeable
 import Test.Hspec
@@ -20,21 +22,22 @@ data SomeDummy
    , sd_maybe :: Maybe Int
    } deriving (Show, Eq)
 
-someDummySpec :: JsonSpec SomeDummy '[Int, Bool, T.Text, Either Bool T.Text, Maybe Int]
+someDummySpec :: HighSpec SomeDummy '[Int, Bool, T.Text, Either Bool T.Text, Maybe Int]
 someDummySpec =
-    JsonSpec SomeDummy $
+    recSpec "Some Dummy" Nothing SomeDummy $
     "int" .= sd_int
     :+: "bool" .= sd_bool
     :+: "text" .= sd_text
     :+: "either" .= sd_either
-    :+: "maybe" .=? sd_maybe
-    :+: EmptySpec
+    :+: "maybe" .= sd_maybe
+    :+: RFEmpty
 
 instance ToJSON SomeDummy where
-    toJSON = makeSerialiser someDummySpec
+    toJSON = jsonSerializer someDummySpec
+    toEncoding = jsonEncoder someDummySpec
 
 instance FromJSON SomeDummy where
-    parseJSON = makeParser someDummySpec
+    parseJSON = jsonParser someDummySpec
 
 newtype SomeText = SomeText { unSomeText :: T.Text }
 
@@ -62,18 +65,19 @@ data SomeNested
    , sn_obj :: Maybe SomeNested
    } deriving (Show, Eq, Typeable)
 
-someNestedSpec :: JsonSpec SomeNested '[[SomeNested], Maybe SomeNested]
+someNestedSpec :: HighSpec SomeNested '[[SomeNested], Maybe SomeNested]
 someNestedSpec =
-    JsonSpec SomeNested $
+    recSpec "Nested" Nothing SomeNested $
     "list" .= sn_list
     :+: "obj" .=? sn_obj
-    :+: EmptySpec
+    :+: RFEmpty
 
 instance ToJSON SomeNested where
-    toJSON = makeSerialiser someNestedSpec
+    toJSON = jsonSerializer someNestedSpec
+    toEncoding = jsonEncoder someNestedSpec
 
 instance FromJSON SomeNested where
-    parseJSON = makeParser someNestedSpec
+    parseJSON = jsonParser someNestedSpec
 
 data SomeSumType
    = SomeDummyT SomeDummy
@@ -82,28 +86,23 @@ data SomeSumType
    | SomeEnum
    deriving (Show, Eq, Typeable)
 
-someSumSpec :: JsonSumSpec SomeSumType
+makePrisms ''SomeSumType
+
+someSumSpec :: HighSpec SomeSumType '[SomeDummy, Int, Bool, ()]
 someSumSpec =
-    JsonSumSpec
-    { js_parser =
-            "dummy" .-> SomeDummyT
-       <||> "int" .-> SomeInt
-       <||> "bool" .-> SomeBool
-       <||> "enum" .-> \() -> SomeEnum
-    , js_serialiser =
-          \v ->
-              case v of
-                SomeDummyT d -> "dummy" .<- d
-                SomeInt i -> "int" .<- i
-                SomeBool b -> "bool" .<- b
-                SomeEnum -> "enum" .<- ()
-    }
+    sumSpec "SomeSum" Nothing $
+    "some_dummy" .-> _SomeDummyT
+    :|: "some_int" .-> _SomeInt
+    :|: "some_bool" .-> _SomeBool
+    :|: "some_enum" .-> _SomeEnum
+    :|: SOEmpty
 
 instance ToJSON SomeSumType where
-    toJSON = makeSumSerialiser someSumSpec
+    toJSON = jsonSerializer someSumSpec
+    toEncoding = jsonEncoder someSumSpec
 
 instance FromJSON SomeSumType where
-    parseJSON = makeSumParser someSumSpec
+    parseJSON = jsonParser someSumSpec
 
 instance Arbitrary SomeSumType where
     arbitrary =
@@ -119,18 +118,19 @@ data ParamType a
    , pt_val :: T.Text
    } deriving (Show, Eq, Typeable)
 
-paramTypeSpec :: (Typeable a, ToJSON a, FromJSON a) => JsonSpec (ParamType a) '[a, T.Text]
+paramTypeSpec :: FromJSON a => HighSpec (ParamType a) '[a, T.Text]
 paramTypeSpec =
-    JsonSpec ParamType $
+    recSpec "Some Param" Nothing ParamType $
     "key" .= pt_key
     :+: "val" .= pt_val
-    :+: EmptySpec
+    :+: RFEmpty
 
-instance (Typeable a, ToJSON a, FromJSON a) => ToJSON (ParamType a) where
-    toJSON = makeSerialiser paramTypeSpec
+instance (ToJSON a, FromJSON a) => ToJSON (ParamType a) where
+    toJSON = jsonSerializer paramTypeSpec
+    toEncoding = jsonEncoder paramTypeSpec
 
-instance (Typeable a, ToJSON a, FromJSON a) => FromJSON (ParamType a) where
-    parseJSON = makeParser paramTypeSpec
+instance (FromJSON a) => FromJSON (ParamType a) where
+    parseJSON = jsonParser paramTypeSpec
 
 instance Arbitrary a => Arbitrary (ParamType a) where
     arbitrary =

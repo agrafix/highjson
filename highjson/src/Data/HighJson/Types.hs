@@ -40,8 +40,7 @@ infixr 5 :+:
 
 data RecordField t f
     = RecordField
-    { rf_name :: !T.Text
-    , rf_jsonKey :: !T.Text
+    { rf_jsonKey :: !T.Text
     , rf_optional :: !Bool
     , rf_jsonLoader :: Object -> T.Text -> Parser f
     , rf_get :: !(t -> f)
@@ -61,8 +60,7 @@ infixr 5 :|:
 
 data SumOption t o
     = SumOption
-    { so_name:: !T.Text
-    , so_jsonKey :: !T.Text
+    { so_jsonKey :: !T.Text
     , so_prism :: !(Prism' t o)
     }
 

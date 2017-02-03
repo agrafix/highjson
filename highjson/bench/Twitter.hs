@@ -23,17 +23,18 @@ data Metadata = Metadata {
     result_type :: Text
   } deriving (Eq, Show, Typeable, Data, Generic)
 
-metadataSpec :: JsonSpec Metadata '[Text]
+metadataSpec :: HighSpec Metadata '[Text]
 metadataSpec =
-    JsonSpec Metadata $
+    recSpec "MetaData" Nothing Metadata $
     "result_type" .= result_type
-    :+: EmptySpec
+    :+: RFEmpty
 
 instance FromJSON Metadata where
-    parseJSON = makeParser metadataSpec
+    parseJSON = jsonParser metadataSpec
 
 instance ToJSON Metadata where
-    toJSON = makeSerialiser metadataSpec
+    toJSON = jsonSerializer metadataSpec
+    toEncoding = jsonEncoder metadataSpec
 
 instance NFData Metadata
 
@@ -48,18 +49,19 @@ data Geo = Geo {
   , coordinates :: (Double, Double)
   } deriving (Eq, Show, Typeable, Data, Generic)
 
-geoSpec :: JsonSpec Geo '[Text, (Double, Double)]
+geoSpec :: HighSpec Geo '[Text, (Double, Double)]
 geoSpec =
-    JsonSpec Geo $
+    recSpec "Geo" Nothing Geo $
     "type_" .= type_
     :+: "coordinates" .= coordinates
-    :+: EmptySpec
+    :+: RFEmpty
 
 instance FromJSON Geo where
-    parseJSON = makeParser geoSpec
+    parseJSON = jsonParser geoSpec
 
 instance ToJSON Geo where
-    toJSON = makeSerialiser geoSpec
+    toJSON = jsonSerializer geoSpec
+    toEncoding = jsonEncoder geoSpec
 
 instance NFData Geo
 
@@ -87,10 +89,10 @@ data Story = Story {
   , source            :: Text
   } deriving (Show, Typeable, Data, Generic)
 
-storySpec :: JsonSpec Story '[Text, Text, Text, Text, Text, Metadata, Maybe Int64, Text, Int64,
+storySpec :: HighSpec Story '[Text, Text, Text, Text, Text, Metadata, Maybe Int64, Text, Int64,
                               Int64, Maybe Geo, Text, Maybe Text, Text]
 storySpec =
-    JsonSpec Story $
+    recSpec "Story" Nothing Story $
     "from_user_id_str" .= from_user_id_str
     :+: "profile_image_url" .= profile_image_url
     :+: "created_at" .= created_at
@@ -105,14 +107,14 @@ storySpec =
     :+: "iso_language_code" .= iso_language_code
     :+: "to_user_id_str" .= to_user_id_str
     :+: "source" .= source
-    :+: EmptySpec
+    :+: RFEmpty
 
 instance FromJSON Story where
-    parseJSON = makeParser storySpec
+    parseJSON = jsonParser storySpec
 
 instance ToJSON Story where
-    toJSON = makeSerialiser storySpec
-
+    toJSON = jsonSerializer storySpec
+    toEncoding = jsonEncoder storySpec
 instance NFData Story
 
 data Story1 = Story1 {
@@ -148,10 +150,10 @@ data Result = Result {
   , query            :: Text
   } deriving (Show, Typeable, Data, Generic)
 
-resultSpec :: JsonSpec Result '[[Story], Int64, Int64, Text, Text, Int, Int, Double, Text, Text,
+resultSpec :: HighSpec Result '[[Story], Int64, Int64, Text, Text, Int, Int, Double, Text, Text,
                                 Text]
 resultSpec =
-    JsonSpec Result $
+    recSpec "Result" Nothing Result $
     "results" .= results
     :+: "max_id" .= max_id
     :+: "since_id" .= since_id
@@ -163,13 +165,14 @@ resultSpec =
     :+: "since_id_str" .= since_id_str
     :+: "max_id_str" .= max_id_str
     :+: "query" .= query
-    :+: EmptySpec
+    :+: RFEmpty
 
 instance FromJSON Result where
-    parseJSON = makeParser resultSpec
+    parseJSON = jsonParser resultSpec
 
 instance ToJSON Result where
-    toJSON = makeSerialiser resultSpec
+    toJSON = jsonSerializer resultSpec
+    toEncoding = jsonEncoder resultSpec
 
 instance NFData Result
 
