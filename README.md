@@ -26,7 +26,7 @@ data SomeDummy
    , sd_maybe :: Maybe Int
    } deriving (Show, Eq)
 
-someDummySpec :: HighSpec SomeDummy _
+someDummySpec :: RecordTypeSpec SomeDummy _
 someDummySpec =
     recSpec "Some Dummy" Nothing SomeDummy $
     "int" .= sd_int

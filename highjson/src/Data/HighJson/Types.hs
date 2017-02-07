@@ -1,10 +1,11 @@
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Data.HighJson.Types
-    ( HighSpec(..)
+    ( HighSpec(..), SpecType(..)
     , BodySpec(..)
     , RecordFields(..), RecordField(..), RecordSpec(..)
     , SumOptions(..), SumOption(..), SumSpec(..)
@@ -19,11 +20,17 @@ import Data.Aeson
 import Data.Aeson.Types hiding (parse)
 import Data.HVect
 import Data.Monoid
+import Data.Proxy
 import qualified Data.Text as T
 
-data HighSpec a as
+data SpecType
+    = SpecRecord
+    | SpecSum
+
+data HighSpec a (ty :: SpecType) as
     = HighSpec
     { hs_name :: !T.Text
+    , hs_type :: !(Proxy ty)
     , hs_description :: !(Maybe T.Text)
     , hs_bodySpec :: !(BodySpec a as)
     }
@@ -69,14 +76,14 @@ data SumSpec a os
     { ss_options :: SumOptions a os
     }
 
-jsonSerializer :: AllHave ToJSON as => HighSpec a as -> a -> Value
+jsonSerializer :: AllHave ToJSON as => HighSpec a ty as -> a -> Value
 jsonSerializer hs val =
     object $ fst $
     case hs_bodySpec hs of
       BodySpecSum s -> jsonSerSum s val
       BodySpecRecord r -> jsonSerRec r val
 
-jsonEncoder :: AllHave ToJSON as => HighSpec a as -> a -> Encoding
+jsonEncoder :: AllHave ToJSON as => HighSpec a ty as -> a -> Encoding
 jsonEncoder hs val =
     pairs $ snd $
     case hs_bodySpec hs of
@@ -115,7 +122,7 @@ jsonSerRec (RecordSpec _ rflds) val =
                     encoder = rf_jsonKey f .= rf_get f val
                 in loop fs ((pair : ps), encoder <> encoding)
 
-jsonParser :: AllHave FromJSON as => HighSpec a as -> Value -> Parser a
+jsonParser :: AllHave FromJSON as => HighSpec a ty as -> Value -> Parser a
 jsonParser hs =
     withObject (T.unpack $ hs_name hs) $ \obj ->
     case hs_bodySpec hs of

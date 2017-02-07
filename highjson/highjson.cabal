@@ -1,5 +1,5 @@
 name:                highjson
-version:             0.3.0.0
+version:             0.4.0.0
 synopsis:            Spec based JSON parsing/serialisation
 description:         Low boilerplate, easy to use and very fast JSON serialisation and parsing without generics or TemplateHaskell
 homepage:            https://github.com/agrafix/highjson

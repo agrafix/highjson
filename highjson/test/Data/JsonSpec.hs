@@ -22,7 +22,7 @@ data SomeDummy
    , sd_maybe :: Maybe Int
    } deriving (Show, Eq)
 
-someDummySpec :: HighSpec SomeDummy '[Int, Bool, T.Text, Either Bool T.Text, Maybe Int]
+someDummySpec :: RecordTypeSpec SomeDummy '[Int, Bool, T.Text, Either Bool T.Text, Maybe Int]
 someDummySpec =
     recSpec "Some Dummy" Nothing SomeDummy $
     "int" .= sd_int
@@ -65,7 +65,7 @@ data SomeNested
    , sn_obj :: Maybe SomeNested
    } deriving (Show, Eq, Typeable)
 
-someNestedSpec :: HighSpec SomeNested '[[SomeNested], Maybe SomeNested]
+someNestedSpec :: RecordTypeSpec SomeNested '[[SomeNested], Maybe SomeNested]
 someNestedSpec =
     recSpec "Nested" Nothing SomeNested $
     "list" .= sn_list
@@ -88,7 +88,7 @@ data SomeSumType
 
 makePrisms ''SomeSumType
 
-someSumSpec :: HighSpec SomeSumType '[SomeDummy, Int, Bool, ()]
+someSumSpec :: SumTypeSpec SomeSumType '[SomeDummy, Int, Bool, ()]
 someSumSpec =
     sumSpec "SomeSum" Nothing $
     "some_dummy" .-> _SomeDummyT
@@ -118,7 +118,7 @@ data ParamType a
    , pt_val :: T.Text
    } deriving (Show, Eq, Typeable)
 
-paramTypeSpec :: FromJSON a => HighSpec (ParamType a) '[a, T.Text]
+paramTypeSpec :: FromJSON a => RecordTypeSpec (ParamType a) '[a, T.Text]
 paramTypeSpec =
     recSpec "Some Param" Nothing ParamType $
     "key" .= pt_key

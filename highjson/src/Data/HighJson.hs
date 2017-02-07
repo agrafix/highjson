@@ -1,12 +1,13 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DataKinds #-}
 module Data.HighJson
     ( -- * A json specification for any type
-      HighSpec(..)
+      HighSpec(..), SpecType(..)
       -- * Construct specifications for records
-    , recSpec, RecordFields(..), reqField, (.=), optField, (.=?)
+    , recSpec, RecordTypeSpec, RecordFields(..), reqField, (.=), optField, (.=?)
       -- * Construct specifications for sum types
-    , sumSpec, SumOptions(..), sumOpt, (.->)
+    , sumSpec, SumTypeSpec, SumOptions(..), sumOpt, (.->)
       -- * Generate json serializers/encoders and parsers from specs
     , jsonSerializer, jsonEncoder, jsonParser
       -- * Specification structures
@@ -22,6 +23,7 @@ import Data.HighJson.Types
 
 import Control.Lens hiding ((.=))
 import Data.Aeson ((.:), (.:?), FromJSON(..), ToJSON(..))
+import Data.Proxy
 import qualified Data.HVect as HV
 import qualified Data.Text as T
 
@@ -59,19 +61,28 @@ sumOpt jsonKey p =
 (.->) :: T.Text -> Prism' t o -> SumOption t o
 jsonKey .-> p = sumOpt jsonKey p
 
-recSpec :: T.Text -> Maybe T.Text -> HV.HVectElim flds t -> RecordFields t flds -> HighSpec t flds
+type RecordTypeSpec t flds = HighSpec t 'SpecRecord flds
+
+recSpec ::
+    T.Text -> Maybe T.Text -> HV.HVectElim flds t
+    -> RecordFields t flds
+    -> RecordTypeSpec t flds
 recSpec name mDesc mk fields =
     HighSpec
     { hs_name = name
+    , hs_type = Proxy
     , hs_description = mDesc
     , hs_bodySpec =
             BodySpecRecord $ RecordSpec (HV.uncurry mk) fields
     }
 
-sumSpec :: T.Text -> Maybe T.Text -> SumOptions t flds -> HighSpec t flds
+type SumTypeSpec t flds = HighSpec t 'SpecSum flds
+
+sumSpec :: T.Text -> Maybe T.Text -> SumOptions t flds -> SumTypeSpec t flds
 sumSpec name mDesc opts =
     HighSpec
     { hs_name = name
+    , hs_type = Proxy
     , hs_description = mDesc
     , hs_bodySpec = BodySpecSum $ SumSpec opts
     }

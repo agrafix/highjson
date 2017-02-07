@@ -1,10 +1,15 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 module Data.HighJson.Swagger
     ( makeDeclareNamedSchema, makeDeclareNamedSchema', DeclM
+    , IsValidSwaggerType
     )
 where
 
@@ -12,6 +17,7 @@ import Control.Lens
 import Data.HVect (AllHave)
 import Data.HashMap.Strict.InsOrd (InsOrdHashMap)
 import Data.HighJson
+import Data.Kind
 import Data.Monoid
 import Data.Proxy
 import Data.Swagger
@@ -21,10 +27,31 @@ import qualified Data.Text as T
 
 type DeclM = Declare (Definitions Schema)
 
+type family AllAre x (xs :: [*]) :: Bool where
+    AllAre x (x ': xs) = AllAre x xs
+    AllAre x '[] = 'True
+
+type family NoneAre x (xs :: [*]) :: Bool where
+    NoneAre x (x ': xs) = 'False
+    NoneAre x (y ': xs) = AllAre x xs
+    NoneAre x '[] = 'True
+
+type family Or x y where
+    Or 'True x = 'True
+    Or x 'True = 'True
+    Or x y = 'False
+
+-- | Not all valid Haskell types have a valid swagger mapping. Simple records
+-- are fine, but sum types should be either "real" Enums or every option must
+-- contain a value. For more information see the swagger2 haskell package.
+type family IsValidSwaggerType ty (ts :: [*]) :: Constraint where
+    IsValidSwaggerType 'SpecRecord xs = 'True ~ 'True
+    IsValidSwaggerType 'SpecSum xs = Or (AllAre () xs) (NoneAre () xs) ~ 'True
+
 -- | Automatically generate a 'NamedSchema' from a 'HighSpec'
 makeDeclareNamedSchema ::
-    (AllHave ToSchema ts, AllHave ToJSON ts)
-    => HighSpec k ts
+    (AllHave ToSchema ts, AllHave ToJSON ts, IsValidSwaggerType ty ts)
+    => HighSpec k ty ts
     -> f k
     -> DeclM NamedSchema
 makeDeclareNamedSchema spec = makeDeclareNamedSchema' spec Nothing
@@ -32,8 +59,8 @@ makeDeclareNamedSchema spec = makeDeclareNamedSchema' spec Nothing
 -- | Automatically generate a 'NamedSchema' from a 'HighSpec' while optionally
 -- providing an example value
 makeDeclareNamedSchema' ::
-    (AllHave ToSchema ts, AllHave ToJSON ts)
-    => HighSpec k ts
+    (AllHave ToSchema ts, AllHave ToJSON ts, IsValidSwaggerType ty ts)
+    => HighSpec k ty ts
     -> Maybe k
     -- ^ example value
     -> f k

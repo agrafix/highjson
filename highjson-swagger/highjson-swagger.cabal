@@ -1,5 +1,5 @@
 name:                highjson-swagger
-version:             0.3.0.0
+version:             0.4.0.0
 synopsis:            Derive swagger instances from highjson specs
 description:         Derive swagger instances from highjson specs
 homepage:            https://github.com/agrafix/highjson
