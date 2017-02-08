@@ -96,10 +96,9 @@ makePrisms ''SomeEnum
 
 someEnumSpec :: EnumTypeSpec SomeEnum '[(), ()]
 someEnumSpec =
-    enumSpec "some enum" Nothing
-    [ "int" @-> _SomeEnumA
-    , "dummy" @-> _SomeEnumB
-    ]
+    enumSpec "some enum" Nothing $
+    "int" @-> _SomeEnumA
+    :& "dummy" @-> _SomeEnumB
 
 instance ToJSON SomeEnum where
     toJSON = jsonSerializer someEnumSpec

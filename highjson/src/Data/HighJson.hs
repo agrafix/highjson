@@ -55,6 +55,10 @@ instance CombinableContainer RecordFields where
 instance CombinableContainer SumOptions where
     combineContainer = sumAppend
 
+instance CombinableContainer PhantomEnumContainer where
+    combineContainer (PhantomEnumContainer x) (PhantomEnumContainer y) =
+        PhantomEnumContainer $ x ++ y
+
 class IsRecordSpec t where
     type RFields t :: [*]
     type RType t
@@ -72,6 +76,15 @@ instance IsRecordSpec (SumOption t f) where
     type RType (SumOption t f) = t
     type RContainer (SumOption t f) = SumOptions
     compileRec x = x :|: SOEmpty
+
+newtype PhantomEnumContainer t (ts :: [*])
+    = PhantomEnumContainer { unPhantomEnumContainer :: [EnumOption t] }
+
+instance IsRecordSpec (EnumOption t) where
+    type RFields (EnumOption t) = (() ': '[])
+    type RType (EnumOption t) = t
+    type RContainer (EnumOption t) = PhantomEnumContainer
+    compileRec x = PhantomEnumContainer [x]
 
 instance (IsRecordSpec x, IsRecordSpec y, RType x ~ RType y, RContainer x ~ RContainer y, CombinableContainer (RContainer x)) => IsRecordSpec (x :& y) where
     type RFields (x :& y) = HV.Append (RFields x) (RFields y)
@@ -150,12 +163,14 @@ sumSpec name mDesc opts =
 
 type EnumTypeSpec t flds = HighSpec t 'SpecEnum flds
 
-enumSpec :: T.Text -> Maybe T.Text -> [EnumOption t] -> EnumTypeSpec t flds
+enumSpec ::
+    (IsRecordSpec q, RContainer q ~ PhantomEnumContainer)
+    => T.Text -> Maybe T.Text -> q -> EnumTypeSpec (RType q) (RFields q)
 enumSpec name mDesc opts =
     HighSpec
     { hs_name = name
     , hs_description = mDesc
-    , hs_bodySpec = BodySpecEnum $ EnumSpec opts
+    , hs_bodySpec = BodySpecEnum $ EnumSpec (unPhantomEnumContainer $ compileRec opts)
     }
 
 enumOpt :: T.Text -> Prism' t () -> EnumOption t
