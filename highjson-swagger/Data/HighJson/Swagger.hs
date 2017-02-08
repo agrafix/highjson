@@ -9,7 +9,7 @@
 {-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 module Data.HighJson.Swagger
     ( makeDeclareNamedSchema, makeDeclareNamedSchema', DeclM
-    , IsValidSwaggerType
+    , IsValidSwaggerType, AllAre, NoneAre
     )
 where
 
@@ -33,20 +33,16 @@ type family AllAre x (xs :: [*]) :: Bool where
 
 type family NoneAre x (xs :: [*]) :: Bool where
     NoneAre x (x ': xs) = 'False
-    NoneAre x (y ': xs) = AllAre x xs
+    NoneAre x (y ': xs) = NoneAre x xs
     NoneAre x '[] = 'True
-
-type family Or x y where
-    Or 'True x = 'True
-    Or x 'True = 'True
-    Or x y = 'False
 
 -- | Not all valid Haskell types have a valid swagger mapping. Simple records
 -- are fine, but sum types should be either "real" Enums or every option must
 -- contain a value. For more information see the swagger2 haskell package.
 type family IsValidSwaggerType ty (ts :: [*]) :: Constraint where
     IsValidSwaggerType 'SpecRecord xs = 'True ~ 'True
-    IsValidSwaggerType 'SpecSum xs = Or (AllAre () xs) (NoneAre () xs) ~ 'True
+    IsValidSwaggerType 'SpecSum xs = NoneAre () xs ~ 'True
+    IsValidSwaggerType 'SpecEnum xs = AllAre () xs ~ 'True
 
 -- | Automatically generate a 'NamedSchema' from a 'HighSpec'
 makeDeclareNamedSchema ::
@@ -66,24 +62,40 @@ makeDeclareNamedSchema' ::
     -> f k
     -> DeclM NamedSchema
 makeDeclareNamedSchema' spec exVal _ =
-    do (props, reqs) <-
-           case hs_bodySpec spec of
-             BodySpecRecord r -> computeRecProperties r
-             BodySpecSum r -> computeSumProperties r
-       let (minProps, maxProps) =
-               case hs_bodySpec spec of
-                 BodySpecSum _ -> (Just 1, Just 1)
-                 BodySpecRecord _ ->
-                     (Just (fromIntegral $ length reqs), Just (fromIntegral $ length props))
-       pure $ NamedSchema (Just $ hs_name spec) $
-           mempty
-           & type_ .~ SwaggerObject
-           & description .~ hs_description spec
-           & properties .~ props
-           & required .~ reqs
-           & maxProperties .~ maxProps
-           & minProperties .~ minProps
-           & example .~ fmap (jsonSerializer spec) exVal
+    case hs_bodySpec spec of
+      BodySpecRecord r ->
+          do (props, reqs) <- computeRecProperties r
+             pure $ NamedSchema (Just $ hs_name spec) $
+                 mempty
+                 & type_ .~ SwaggerObject
+                 & description .~ hs_description spec
+                 & properties .~ props
+                 & required .~ reqs
+                 & maxProperties .~ Just (fromIntegral $ length props)
+                 & minProperties .~ Just (fromIntegral $ length reqs)
+                 & example .~ fmap (jsonSerializer spec) exVal
+      BodySpecSum r ->
+          do (props, reqs) <- computeSumProperties r
+             pure $ NamedSchema (Just $ hs_name spec) $
+                 mempty
+                 & type_ .~ SwaggerObject
+                 & description .~ hs_description spec
+                 & properties .~ props
+                 & required .~ reqs
+                 & maxProperties .~ Just 1
+                 & minProperties .~ Just 1
+                 & example .~ fmap (jsonSerializer spec) exVal
+      BodySpecEnum r ->
+          let ps =
+                  mempty
+                  & type_ .~ SwaggerString
+                  & enum_ .~ Just (map (toJSON . eo_jsonKey) (es_options r))
+          in pure $ NamedSchema (Just $ hs_name spec) $
+             mempty
+             & type_ .~ SwaggerString
+             & description .~ hs_description spec
+             & example .~ fmap (jsonSerializer spec) exVal
+             & paramSchema .~ ps
 
 computeSumProperties ::
     forall k ts. AllHave ToSchema ts

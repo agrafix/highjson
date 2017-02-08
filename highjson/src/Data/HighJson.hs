@@ -8,12 +8,15 @@ module Data.HighJson
     , recSpec, RecordTypeSpec, RecordFields(..), reqField, (.=), optField, (.=?)
       -- * Construct specifications for sum types
     , sumSpec, SumTypeSpec, SumOptions(..), sumOpt, (.->)
+      -- * Construct specifications for enum types
+    , enumSpec, EnumTypeSpec, enumOpt, (@->)
       -- * Generate json serializers/encoders and parsers from specs
     , jsonSerializer, jsonEncoder, jsonParser
       -- * Specification structures
     , BodySpec(..)
     , RecordField(..), RecordSpec(..)
     , SumOption(..), SumSpec(..)
+    , EnumOption(..), EnumSpec(..)
       -- * Aeson reexports
     , ToJSON(..), FromJSON(..)
     )
@@ -23,7 +26,6 @@ import Data.HighJson.Types
 
 import Control.Lens hiding ((.=))
 import Data.Aeson ((.:), (.:?), FromJSON(..), ToJSON(..))
-import Data.Proxy
 import qualified Data.HVect as HV
 import qualified Data.Text as T
 
@@ -70,10 +72,8 @@ recSpec ::
 recSpec name mDesc mk fields =
     HighSpec
     { hs_name = name
-    , hs_type = Proxy
     , hs_description = mDesc
-    , hs_bodySpec =
-            BodySpecRecord $ RecordSpec (HV.uncurry mk) fields
+    , hs_bodySpec = BodySpecRecord $ RecordSpec (HV.uncurry mk) fields
     }
 
 type SumTypeSpec t flds = HighSpec t 'SpecSum flds
@@ -82,7 +82,26 @@ sumSpec :: T.Text -> Maybe T.Text -> SumOptions t flds -> SumTypeSpec t flds
 sumSpec name mDesc opts =
     HighSpec
     { hs_name = name
-    , hs_type = Proxy
     , hs_description = mDesc
     , hs_bodySpec = BodySpecSum $ SumSpec opts
     }
+
+type EnumTypeSpec t flds = HighSpec t 'SpecEnum flds
+
+enumSpec :: T.Text -> Maybe T.Text -> [EnumOption t] -> EnumTypeSpec t flds
+enumSpec name mDesc opts =
+    HighSpec
+    { hs_name = name
+    , hs_description = mDesc
+    , hs_bodySpec = BodySpecEnum $ EnumSpec opts
+    }
+
+enumOpt :: T.Text -> Prism' t () -> EnumOption t
+enumOpt jsonKey p =
+    EnumOption
+    { eo_jsonKey = jsonKey
+    , eo_prism = p
+    }
+
+(@->) :: T.Text -> Prism' t () -> EnumOption t
+jsonKey @-> p = enumOpt jsonKey p

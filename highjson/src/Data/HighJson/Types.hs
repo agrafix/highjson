@@ -9,6 +9,7 @@ module Data.HighJson.Types
     , BodySpec(..)
     , RecordFields(..), RecordField(..), RecordSpec(..)
     , SumOptions(..), SumOption(..), SumSpec(..)
+    , EnumOption(..), EnumSpec(..)
     , jsonSerializer, jsonEncoder, jsonParser
     )
 where
@@ -20,24 +21,24 @@ import Data.Aeson
 import Data.Aeson.Types hiding (parse)
 import Data.HVect
 import Data.Monoid
-import Data.Proxy
 import qualified Data.Text as T
 
 data SpecType
     = SpecRecord
     | SpecSum
+    | SpecEnum
 
 data HighSpec a (ty :: SpecType) as
     = HighSpec
     { hs_name :: !T.Text
-    , hs_type :: !(Proxy ty)
     , hs_description :: !(Maybe T.Text)
-    , hs_bodySpec :: !(BodySpec a as)
+    , hs_bodySpec :: !(BodySpec ty a as)
     }
 
-data BodySpec a as
-    = BodySpecRecord !(RecordSpec a as)
-    | BodySpecSum !(SumSpec a as)
+data BodySpec ty a as where
+    BodySpecRecord :: !(RecordSpec a as) -> BodySpec 'SpecRecord a as
+    BodySpecSum :: !(SumSpec a as) -> BodySpec 'SpecSum a as
+    BodySpecEnum :: !(EnumSpec a) -> BodySpec 'SpecEnum a as
 
 data RecordFields t fs where
     RFEmpty :: RecordFields t '[]
@@ -76,19 +77,40 @@ data SumSpec a os
     { ss_options :: SumOptions a os
     }
 
+data EnumOption t
+    = EnumOption
+    { eo_jsonKey :: !T.Text
+    , eo_prism :: !(Prism' t ())
+    }
+
+data EnumSpec a
+    = EnumSpec
+    { es_options :: [EnumOption a]
+    }
+
 jsonSerializer :: AllHave ToJSON as => HighSpec a ty as -> a -> Value
 jsonSerializer hs val =
-    object $ fst $
     case hs_bodySpec hs of
-      BodySpecSum s -> jsonSerSum s val
-      BodySpecRecord r -> jsonSerRec r val
+      BodySpecSum s -> object $ fst $ jsonSerSum s val
+      BodySpecRecord r -> object $ fst $ jsonSerRec r val
+      BodySpecEnum e -> toJSON $ jsonSerEnum e val
 
 jsonEncoder :: AllHave ToJSON as => HighSpec a ty as -> a -> Encoding
 jsonEncoder hs val =
-    pairs $ snd $
     case hs_bodySpec hs of
-      BodySpecSum s -> jsonSerSum s val
-      BodySpecRecord r -> jsonSerRec r val
+      BodySpecSum s -> pairs $ snd $ jsonSerSum s val
+      BodySpecRecord r -> pairs $ snd $ jsonSerRec r val
+      BodySpecEnum e -> toEncoding $ jsonSerEnum e val
+
+jsonSerEnum :: EnumSpec a -> a -> T.Text
+jsonSerEnum (EnumSpec opts) val =
+    loop opts
+    where
+      loop [] = error "Empty enum spec"
+      loop (x : xs) =
+          case val ^? eo_prism x of
+            Just () -> eo_jsonKey x
+            Nothing -> loop xs
 
 jsonSerSum :: forall a as. AllHave ToJSON as => SumSpec a as -> a -> ([Pair], Series)
 jsonSerSum (SumSpec sopts) val =
@@ -124,10 +146,13 @@ jsonSerRec (RecordSpec _ rflds) val =
 
 jsonParser :: AllHave FromJSON as => HighSpec a ty as -> Value -> Parser a
 jsonParser hs =
-    withObject (T.unpack $ hs_name hs) $ \obj ->
     case hs_bodySpec hs of
-      BodySpecRecord r -> jsonParserRecord r obj
-      BodySpecSum s -> jsonParserSum (hs_name hs) s obj
+      BodySpecRecord r ->
+          withObject (T.unpack $ hs_name hs) (jsonParserRecord r)
+      BodySpecSum s ->
+          withObject (T.unpack $ hs_name hs) (jsonParserSum (hs_name hs) s)
+      BodySpecEnum e ->
+          withText (T.unpack $ hs_name hs) (jsonParserEnum (hs_name hs) e)
 
 jsonParserRecord :: forall a as. AllHave FromJSON as => RecordSpec a as -> Object -> Parser a
 jsonParserRecord (RecordSpec mk rflds) obj =
@@ -158,3 +183,14 @@ jsonParserSum name (SumSpec sopts) obj =
                 let parse =
                         liftM (so_prism o #) $ obj .: so_jsonKey o
                 in parse <|> loop os
+
+
+jsonParserEnum :: Monad m => T.Text -> EnumSpec a -> T.Text -> m a
+jsonParserEnum name (EnumSpec sopts) t =
+    loop sopts
+    where
+      loop [] = fail $ "Failed to parse as " ++ T.unpack name
+      loop (x : xs) =
+          if t == eo_jsonKey x
+          then pure (eo_prism x # ())
+          else loop xs
