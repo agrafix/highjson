@@ -10,24 +10,24 @@ module Data.HighJson
     ( -- * A json specification for any type
       HighSpec(..), SpecType(..)
       -- * Construct specifications for records
-    , recSpec, RecordTypeSpec, RecordFields(..), reqField, (.=), optField, (.=?)
+    , recSpec, RecordTypeSpec, reqField, (.=), optField, (.=?)
       -- * Construct specifications for sum types
-    , sumSpec, SumTypeSpec, SumOptions(..), sumOpt, (.->)
+    , sumSpec, SumTypeSpec, sumOpt, (.->)
       -- * Construct specifications for enum types
     , enumSpec, EnumTypeSpec, enumOpt, (@->)
       -- * Shared between specifications for simplicity
-    , IsDataSpec(..), (:&)(..), CombinableContainer(..)
+    , IsDataSpec(..), (:&)(..)
       -- * Generate json serializers/encoders and parsers from specs
     , jsonSerializer, jsonEncoder, jsonParser
       -- * Specification structures
     , BodySpec(..)
-    , RecordField(..), RecordSpec(..)
-    , SumOption(..), SumSpec(..)
+    , RecordField(..), RecordSpec(..), RecordFields(..)
+    , SumOption(..), SumSpec(..), SumOptions(..)
     , EnumOption(..), EnumSpec(..)
       -- * Aeson reexports
     , ToJSON(..), FromJSON(..)
       -- * Implementation detail structures
-    , PhantomEnumContainer(..)
+    , PhantomEnumContainer(..), CombinableContainer(..)
     )
 where
 
@@ -39,6 +39,8 @@ import Data.Typeable
 import qualified Data.HVect as HV
 import qualified Data.Text as T
 
+-- | Combination of two local specifications. For records, these are fields, for sum types and enums
+-- these are the options.
 data a :& b
     = a :& b
     deriving (Typeable, Eq, Show, Functor, Traversable, Foldable, Bounded)
@@ -48,6 +50,7 @@ instance (Monoid a, Monoid b) => Monoid (a :& b) where
     mempty = mempty :& mempty
     (a :& b) `mappend` (a' :& b') = (a `mappend` a') :& (b `mappend` b')
 
+-- | A monoidal type class that respects type level lists associated to the bodies
 class CombinableContainer t where
     combineContainer :: t a (as :: [*]) -> t a (bs :: [*]) -> t a (HV.Append as bs)
 
@@ -61,6 +64,8 @@ instance CombinableContainer PhantomEnumContainer where
     combineContainer (PhantomEnumContainer x) (PhantomEnumContainer y) =
         PhantomEnumContainer $ x ++ y
 
+-- | A type class that allows a unified notation for records and sum types. Build specifications
+-- using '(:&)' and '(.=)', '(.=?)', '(.->)' or '(@->)'
 class IsDataSpec t where
     type DFields t :: [*]
     type DType t
@@ -102,7 +107,7 @@ sumAppend :: SumOptions t as -> SumOptions t bs -> SumOptions t (HV.Append as bs
 sumAppend SOEmpty bs = bs
 sumAppend (a :|: as) bs = a :|: (as `sumAppend` bs)
 
-
+-- | A required json field. The key must be present in the json.
 reqField :: FromJSON f => T.Text -> (t -> f) -> RecordField t f
 reqField jsonKey g =
     RecordField
@@ -112,9 +117,11 @@ reqField jsonKey g =
     , rf_get = g
     }
 
+-- | Alias for 'reqField'
 (.=) :: FromJSON f =>  T.Text -> (t -> f) -> RecordField t f
 jsonKey .= reader = reqField jsonKey reader
 
+-- | An optional json field.
 optField :: FromJSON f => T.Text -> (t -> Maybe f) -> RecordField t (Maybe f)
 optField jsonKey g =
     RecordField
@@ -124,9 +131,11 @@ optField jsonKey g =
     , rf_get = g
     }
 
+-- | Alias for 'optField'
 (.=?) :: FromJSON f =>  T.Text -> (t -> Maybe f) -> RecordField t (Maybe f)
 name .=? reader = optField name reader
 
+-- | An option of a sum type
 sumOpt :: T.Text -> Prism' t o -> SumOption t o
 sumOpt jsonKey p =
     SumOption
@@ -134,11 +143,28 @@ sumOpt jsonKey p =
     , so_prism = p
     }
 
+-- | Alias for 'sumOpt'
 (.->) :: T.Text -> Prism' t o -> SumOption t o
 jsonKey .-> p = sumOpt jsonKey p
 
+-- | An option of a classic enum
+enumOpt :: T.Text -> Prism' t () -> EnumOption t
+enumOpt jsonKey p =
+    EnumOption
+    { eo_jsonKey = jsonKey
+    , eo_prism = p
+    }
+
+-- | Alias for 'enumOpt'
+(@->) :: T.Text -> Prism' t () -> EnumOption t
+jsonKey @-> p = enumOpt jsonKey p
+
+-- | A specification for a record
 type RecordTypeSpec t flds = HighSpec t 'SpecRecord flds
 
+-- | The specification for a record. Contains a name, an optional description,
+-- the constructor and a description how to parse and serialize fields respecting
+-- a given json key.
 recSpec ::
     (IsDataSpec q, DContainer q ~ RecordFields)
     => T.Text -> Maybe T.Text -> HV.HVectElim (DFields q) (DType q)
@@ -151,8 +177,11 @@ recSpec name mDesc mk fields =
     , hs_bodySpec = BodySpecRecord $ RecordSpec (HV.uncurry mk) (compileRec fields)
     }
 
+-- | A specification for an arbitrary sum type
 type SumTypeSpec t flds = HighSpec t 'SpecSum flds
 
+-- | The specification for a sum type. Contains a name, an optional description
+-- and a mapping from all constructor (prims) to their respective json fields
 sumSpec ::
     (IsDataSpec q, DContainer q ~ SumOptions)
     => T.Text -> Maybe T.Text -> q -> SumTypeSpec (DType q) (DFields q)
@@ -163,8 +192,11 @@ sumSpec name mDesc opts =
     , hs_bodySpec = BodySpecSum $ SumSpec (compileRec opts)
     }
 
+-- | A specification for a classic enum
 type EnumTypeSpec t flds = HighSpec t 'SpecEnum flds
 
+-- | The specification for a classic enum type. Contains a name, an optional description
+-- and a mapping from all constructors to ther counterpart json string names.
 enumSpec ::
     (IsDataSpec q, DContainer q ~ PhantomEnumContainer)
     => T.Text -> Maybe T.Text -> q -> EnumTypeSpec (DType q) (DFields q)
@@ -174,13 +206,3 @@ enumSpec name mDesc opts =
     , hs_description = mDesc
     , hs_bodySpec = BodySpecEnum $ EnumSpec (unPhantomEnumContainer $ compileRec opts)
     }
-
-enumOpt :: T.Text -> Prism' t () -> EnumOption t
-enumOpt jsonKey p =
-    EnumOption
-    { eo_jsonKey = jsonKey
-    , eo_prism = p
-    }
-
-(@->) :: T.Text -> Prism' t () -> EnumOption t
-jsonKey @-> p = enumOpt jsonKey p

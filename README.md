@@ -17,6 +17,12 @@ parsing without the help of TemplateHaskell or Generics built on top of [aeson](
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+import Data.Aeson
+import Data.HighJson
+
+import Data.HighJson.Swagger -- optional
+import Data.Swagger -- optional
+
 data SomeDummy
    = SomeDummy
    { sd_int :: Int
@@ -41,6 +47,9 @@ instance ToJSON SomeDummy where
 
 instance FromJSON SomeDummy where
     parseJSON = jsonParser someDummySpec
+
+instance ToSchema SomeSum where -- optional, generates swagger2 specifications
+    declareNamedSchema p = makeDeclareNamedSchema someDummySpec p
 
 test =
     decodeEither "{\"int\": 34, \"text\": \"Teext\", \"bool\": true}"
