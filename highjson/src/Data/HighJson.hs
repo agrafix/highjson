@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds #-}
@@ -7,9 +8,11 @@ module Data.HighJson
       -- * Construct specifications for records
     , recSpec, RecordTypeSpec, RecordFields(..), reqField, (.=), optField, (.=?)
       -- * Construct specifications for sum types
-    , sumSpec, SumTypeSpec, SumOptions(..), sumOpt, (.->)
+    , sumSpec, SumTypeSpec, SumOptions(..), sumOpt
       -- * Construct specifications for enum types
-    , enumSpec, EnumTypeSpec, enumOpt, (@->)
+    , enumSpec, EnumTypeSpec, enumOpt
+      -- * Shared between specifications for simplicity
+    , SumMapping(..)
       -- * Generate json serializers/encoders and parsers from specs
     , jsonSerializer, jsonEncoder, jsonParser
       -- * Specification structures
@@ -60,9 +63,6 @@ sumOpt jsonKey p =
     , so_prism = p
     }
 
-(.->) :: T.Text -> Prism' t o -> SumOption t o
-jsonKey .-> p = sumOpt jsonKey p
-
 type RecordTypeSpec t flds = HighSpec t 'SpecRecord flds
 
 recSpec ::
@@ -103,5 +103,17 @@ enumOpt jsonKey p =
     , eo_prism = p
     }
 
-(@->) :: T.Text -> Prism' t () -> EnumOption t
-jsonKey @-> p = enumOpt jsonKey p
+class SumMapping x where
+    type SumIn x
+    type SumOut x
+    (.->) :: T.Text -> Prism' (SumIn x) (SumOut x) -> x
+
+instance SumMapping (SumOption t o) where
+    type SumIn (SumOption t o) = t
+    type SumOut (SumOption t o) = o
+    jsonKey .-> p = sumOpt jsonKey p
+
+instance SumMapping (EnumOption t) where
+    type SumIn (EnumOption t) = t
+    type SumOut (EnumOption t) = ()
+    jsonKey .-> p = enumOpt jsonKey p
