@@ -16,7 +16,7 @@ module Data.HighJson
       -- * Construct specifications for enum types
     , enumSpec, EnumTypeSpec, enumOpt, (@->)
       -- * Shared between specifications for simplicity
-    , IsRecordSpec(..), (:&)(..)
+    , IsDataSpec(..), (:&)(..), CombinableContainer(..)
       -- * Generate json serializers/encoders and parsers from specs
     , jsonSerializer, jsonEncoder, jsonParser
       -- * Specification structures
@@ -26,6 +26,8 @@ module Data.HighJson
     , EnumOption(..), EnumSpec(..)
       -- * Aeson reexports
     , ToJSON(..), FromJSON(..)
+      -- * Implementation detail structures
+    , PhantomEnumContainer(..)
     )
 where
 
@@ -59,37 +61,37 @@ instance CombinableContainer PhantomEnumContainer where
     combineContainer (PhantomEnumContainer x) (PhantomEnumContainer y) =
         PhantomEnumContainer $ x ++ y
 
-class IsRecordSpec t where
-    type RFields t :: [*]
-    type RType t
-    type RContainer t :: * -> [*] -> *
-    compileRec :: t -> (RContainer t) (RType t) (RFields t)
+class IsDataSpec t where
+    type DFields t :: [*]
+    type DType t
+    type DContainer t :: * -> [*] -> *
+    compileRec :: t -> (DContainer t) (DType t) (DFields t)
 
-instance IsRecordSpec (RecordField t f) where
-    type RFields (RecordField t f) = (f ': '[])
-    type RType (RecordField t f) = t
-    type RContainer (RecordField t f) = RecordFields
+instance IsDataSpec (RecordField t f) where
+    type DFields (RecordField t f) = (f ': '[])
+    type DType (RecordField t f) = t
+    type DContainer (RecordField t f) = RecordFields
     compileRec x = x :+: RFEmpty
 
-instance IsRecordSpec (SumOption t f) where
-    type RFields (SumOption t f) = (f ': '[])
-    type RType (SumOption t f) = t
-    type RContainer (SumOption t f) = SumOptions
+instance IsDataSpec (SumOption t f) where
+    type DFields (SumOption t f) = (f ': '[])
+    type DType (SumOption t f) = t
+    type DContainer (SumOption t f) = SumOptions
     compileRec x = x :|: SOEmpty
 
 newtype PhantomEnumContainer t (ts :: [*])
     = PhantomEnumContainer { unPhantomEnumContainer :: [EnumOption t] }
 
-instance IsRecordSpec (EnumOption t) where
-    type RFields (EnumOption t) = (() ': '[])
-    type RType (EnumOption t) = t
-    type RContainer (EnumOption t) = PhantomEnumContainer
+instance IsDataSpec (EnumOption t) where
+    type DFields (EnumOption t) = (() ': '[])
+    type DType (EnumOption t) = t
+    type DContainer (EnumOption t) = PhantomEnumContainer
     compileRec x = PhantomEnumContainer [x]
 
-instance (IsRecordSpec x, IsRecordSpec y, RType x ~ RType y, RContainer x ~ RContainer y, CombinableContainer (RContainer x)) => IsRecordSpec (x :& y) where
-    type RFields (x :& y) = HV.Append (RFields x) (RFields y)
-    type RType (x :& y) = RType x
-    type RContainer (x :& y) = RContainer x
+instance (IsDataSpec x, IsDataSpec y, DType x ~ DType y, DContainer x ~ DContainer y, CombinableContainer (DContainer x)) => IsDataSpec (x :& y) where
+    type DFields (x :& y) = HV.Append (DFields x) (DFields y)
+    type DType (x :& y) = DType x
+    type DContainer (x :& y) = DContainer x
     compileRec (x :& y) = combineContainer (compileRec x) (compileRec y)
 
 recAppend :: RecordFields t as -> RecordFields t bs -> RecordFields t (HV.Append as bs)
@@ -138,10 +140,10 @@ jsonKey .-> p = sumOpt jsonKey p
 type RecordTypeSpec t flds = HighSpec t 'SpecRecord flds
 
 recSpec ::
-    (IsRecordSpec q, RContainer q ~ RecordFields)
-    => T.Text -> Maybe T.Text -> HV.HVectElim (RFields q) (RType q)
+    (IsDataSpec q, DContainer q ~ RecordFields)
+    => T.Text -> Maybe T.Text -> HV.HVectElim (DFields q) (DType q)
     -> q
-    -> RecordTypeSpec (RType q) (RFields q)
+    -> RecordTypeSpec (DType q) (DFields q)
 recSpec name mDesc mk fields =
     HighSpec
     { hs_name = name
@@ -152,8 +154,8 @@ recSpec name mDesc mk fields =
 type SumTypeSpec t flds = HighSpec t 'SpecSum flds
 
 sumSpec ::
-    (IsRecordSpec q, RContainer q ~ SumOptions)
-    => T.Text -> Maybe T.Text -> q -> SumTypeSpec (RType q) (RFields q)
+    (IsDataSpec q, DContainer q ~ SumOptions)
+    => T.Text -> Maybe T.Text -> q -> SumTypeSpec (DType q) (DFields q)
 sumSpec name mDesc opts =
     HighSpec
     { hs_name = name
@@ -164,8 +166,8 @@ sumSpec name mDesc opts =
 type EnumTypeSpec t flds = HighSpec t 'SpecEnum flds
 
 enumSpec ::
-    (IsRecordSpec q, RContainer q ~ PhantomEnumContainer)
-    => T.Text -> Maybe T.Text -> q -> EnumTypeSpec (RType q) (RFields q)
+    (IsDataSpec q, DContainer q ~ PhantomEnumContainer)
+    => T.Text -> Maybe T.Text -> q -> EnumTypeSpec (DType q) (DFields q)
 enumSpec name mDesc opts =
     HighSpec
     { hs_name = name

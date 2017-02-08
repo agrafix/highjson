@@ -30,11 +30,10 @@ someDummySpec :: RecordTypeSpec SomeDummy _
 someDummySpec =
     recSpec "Some Dummy" Nothing SomeDummy $
     "int" .= sd_int
-    :+: "bool" .= sd_bool
-    :+: "text" .= sd_text
-    :+: "either" .= sd_either
-    :+: "maybe" .= sd_maybe
-    :+: RFEmpty
+    :& "bool" .= sd_bool
+    :& "text" .= sd_text
+    :& "either" .= sd_either
+    :& "maybe" .= sd_maybe
 
 instance ToJSON SomeDummy where
     toJSON = jsonSerializer someDummySpec
