@@ -20,7 +20,7 @@ library
                   Data.HighJson.Swagger
   build-depends:
                 base >=4.8 && <5,
-                highjson >= 0.3,
+                highjson >= 0.4,
                 swagger2 >= 2.1.3,
                 text,
                 lens,
