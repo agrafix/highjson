@@ -26,7 +26,7 @@ library
   build-depends:
                 aeson >= 1.0,
                 base >=4.8 && <5,
-                hvect >=0.2,
+                hvect >=0.4,
                 text >=1.1.1,
                 lens
   hs-source-dirs:      src
