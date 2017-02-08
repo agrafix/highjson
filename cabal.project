@@ -1,5 +1,6 @@
 packages:
   highjson/*.cabal
   highjson-swagger/*.cabal
+  highjson-th/*.cabal
 
 benchmarks: False

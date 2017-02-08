@@ -56,6 +56,45 @@ test =
         == Right (SomeDummy 34 True "Teext" Nothing)
 ```
 
+### Template haskell
+
+There's also a small shortcut via template haskell (`highjson-th`):
+
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TemplateHaskell #-}
+import Data.HighJson
+import Data.HighJson.Swagger
+import Data.HighJson.TH
+
+data SomeDummy
+   = SomeDummy
+   { sd_int :: Int
+   , sd_bool :: Bool
+   , sd_text :: T.Text
+   , sd_either :: Either Bool T.Text
+   , sd_maybe :: Maybe Int
+   } deriving (Show, Eq)
+
+someDummySpec :: RecordTypeSpec SomeDummy _
+someDummySpec =
+    recSpec "Some Dummy" Nothing SomeDummy $
+    "int" .= sd_int
+    :& "bool" .= sd_bool
+    :& "text" .= sd_text
+    :& "either" .= sd_either
+    :& "maybe" .= sd_maybe
+
+$(deriveJsonSwagger ''SomeDummy 'someDummySpec)
+
+test =
+    decodeEither "{\"int\": 34, \"text\": \"Teext\", \"bool\": true}"
+        == Right (SomeDummy 34 True "Teext" Nothing)
+```
+
+### Tests
+
 For more usage examples check the tests.
 
 ## Install

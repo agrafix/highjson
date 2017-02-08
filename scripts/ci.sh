@@ -17,7 +17,7 @@ case "$step" in
                 ;;
             cabal)
                 sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config;
-                cabal new-build --enable-tests -j4 --dep highjson highjson-swagger
+                cabal new-build --enable-tests -j4 --dep highjson highjson-swagger highjson-th
                 ;;
         esac
         ;;
@@ -27,7 +27,7 @@ case "$step" in
                 stack $STACK_ARGS $STACK_BUILD_MODE --pedantic --fast --no-terminal --skip-ghc-check $STACK_BUILD_ARGS
                 ;;
             cabal)
-                cabal new-build --enable-tests -j4 --dep highjson highjson-swagger
+                cabal new-build --enable-tests -j4 --dep highjson highjson-swagger highjson-th
                 ;;
         esac
         ;;
