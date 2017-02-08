@@ -26,11 +26,10 @@ someDummySpec :: RecordTypeSpec SomeDummy '[Int, Bool, T.Text, Either Bool T.Tex
 someDummySpec =
     recSpec "Some Dummy" Nothing SomeDummy $
     "int" .= sd_int
-    :+: "bool" .= sd_bool
-    :+: "text" .= sd_text
-    :+: "either" .= sd_either
-    :+: "maybe" .= sd_maybe
-    :+: RFEmpty
+    :& "bool" .= sd_bool
+    :& "text" .= sd_text
+    :& "either" .= sd_either
+    :& "maybe" .= sd_maybe
 
 instance ToJSON SomeDummy where
     toJSON = jsonSerializer someDummySpec
@@ -69,8 +68,7 @@ someNestedSpec :: RecordTypeSpec SomeNested '[[SomeNested], Maybe SomeNested]
 someNestedSpec =
     recSpec "Nested" Nothing SomeNested $
     "list" .= sn_list
-    :+: "obj" .=? sn_obj
-    :+: RFEmpty
+    :& "obj" .=? sn_obj
 
 instance ToJSON SomeNested where
     toJSON = jsonSerializer someNestedSpec
@@ -92,10 +90,9 @@ someSumSpec :: SumTypeSpec SomeSumType '[SomeDummy, Int, Bool, ()]
 someSumSpec =
     sumSpec "SomeSum" Nothing $
     "some_dummy" .-> _SomeDummyT
-    :|: "some_int" .-> _SomeInt
-    :|: "some_bool" .-> _SomeBool
-    :|: "some_enum" .-> _SomeEnum
-    :|: SOEmpty
+    :& "some_int" .-> _SomeInt
+    :& "some_bool" .-> _SomeBool
+    :& "some_enum" .-> _SomeEnum
 
 instance ToJSON SomeSumType where
     toJSON = jsonSerializer someSumSpec
@@ -122,8 +119,7 @@ paramTypeSpec :: FromJSON a => RecordTypeSpec (ParamType a) '[a, T.Text]
 paramTypeSpec =
     recSpec "Some Param" Nothing ParamType $
     "key" .= pt_key
-    :+: "val" .= pt_val
-    :+: RFEmpty
+    :& "val" .= pt_val
 
 instance (ToJSON a, FromJSON a) => ToJSON (ParamType a) where
     toJSON = jsonSerializer paramTypeSpec

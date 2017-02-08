@@ -28,11 +28,10 @@ someDummySpec :: RecordTypeSpec SomeDummy '[Int, Bool, T.Text, Either Bool T.Tex
 someDummySpec =
     recSpec "Some Dummy" Nothing SomeDummy $
     "int" .= sd_int
-    :+: "bool" .= sd_bool
-    :+: "text" .= sd_text
-    :+: "either" .= sd_either
-    :+: "maybe" .=? sd_maybe
-    :+: RFEmpty
+    :& "bool" .= sd_bool
+    :& "text" .= sd_text
+    :& "either" .= sd_either
+    :& "maybe" .=? sd_maybe
 
 instance ToJSON SomeDummy where
     toJSON = jsonSerializer someDummySpec
@@ -72,8 +71,7 @@ someSumSpec :: SumTypeSpec SomeSum '[Int, SomeDummy]
 someSumSpec =
     sumSpec "some sum" Nothing $
     "int" .-> _SomeSumInt
-    :|: "dummy" .-> _SomeSumDummy
-    :|: SOEmpty
+    :& "dummy" .-> _SomeSumDummy
 
 instance ToJSON SomeSum where
     toJSON = jsonSerializer someSumSpec
@@ -99,8 +97,8 @@ makePrisms ''SomeEnum
 someEnumSpec :: EnumTypeSpec SomeEnum '[(), ()]
 someEnumSpec =
     enumSpec "some enum" Nothing
-    [ "int" .-> _SomeEnumA
-    , "dummy" .-> _SomeEnumB
+    [ "int" @-> _SomeEnumA
+    , "dummy" @-> _SomeEnumB
     ]
 
 instance ToJSON SomeEnum where

@@ -1,3 +1,7 @@
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
@@ -8,11 +12,11 @@ module Data.HighJson
       -- * Construct specifications for records
     , recSpec, RecordTypeSpec, RecordFields(..), reqField, (.=), optField, (.=?)
       -- * Construct specifications for sum types
-    , sumSpec, SumTypeSpec, SumOptions(..), sumOpt
+    , sumSpec, SumTypeSpec, SumOptions(..), sumOpt, (.->)
       -- * Construct specifications for enum types
-    , enumSpec, EnumTypeSpec, enumOpt
+    , enumSpec, EnumTypeSpec, enumOpt, (@->)
       -- * Shared between specifications for simplicity
-    , SumMapping(..)
+    , IsRecordSpec(..), (:&)(..)
       -- * Generate json serializers/encoders and parsers from specs
     , jsonSerializer, jsonEncoder, jsonParser
       -- * Specification structures
@@ -29,8 +33,60 @@ import Data.HighJson.Types
 
 import Control.Lens hiding ((.=))
 import Data.Aeson ((.:), (.:?), FromJSON(..), ToJSON(..))
+import Data.Typeable
 import qualified Data.HVect as HV
 import qualified Data.Text as T
+
+data a :& b
+    = a :& b
+    deriving (Typeable, Eq, Show, Functor, Traversable, Foldable, Bounded)
+infixr 8 :&
+
+instance (Monoid a, Monoid b) => Monoid (a :& b) where
+    mempty = mempty :& mempty
+    (a :& b) `mappend` (a' :& b') = (a `mappend` a') :& (b `mappend` b')
+
+class CombinableContainer t where
+    combineContainer :: t a (as :: [*]) -> t a (bs :: [*]) -> t a (HV.Append as bs)
+
+instance CombinableContainer RecordFields where
+    combineContainer = recAppend
+
+instance CombinableContainer SumOptions where
+    combineContainer = sumAppend
+
+class IsRecordSpec t where
+    type RFields t :: [*]
+    type RType t
+    type RContainer t :: * -> [*] -> *
+    compileRec :: t -> (RContainer t) (RType t) (RFields t)
+
+instance IsRecordSpec (RecordField t f) where
+    type RFields (RecordField t f) = (f ': '[])
+    type RType (RecordField t f) = t
+    type RContainer (RecordField t f) = RecordFields
+    compileRec x = x :+: RFEmpty
+
+instance IsRecordSpec (SumOption t f) where
+    type RFields (SumOption t f) = (f ': '[])
+    type RType (SumOption t f) = t
+    type RContainer (SumOption t f) = SumOptions
+    compileRec x = x :|: SOEmpty
+
+instance (IsRecordSpec x, IsRecordSpec y, RType x ~ RType y, RContainer x ~ RContainer y, CombinableContainer (RContainer x)) => IsRecordSpec (x :& y) where
+    type RFields (x :& y) = HV.Append (RFields x) (RFields y)
+    type RType (x :& y) = RType x
+    type RContainer (x :& y) = RContainer x
+    compileRec (x :& y) = combineContainer (compileRec x) (compileRec y)
+
+recAppend :: RecordFields t as -> RecordFields t bs -> RecordFields t (HV.Append as bs)
+recAppend RFEmpty bs = bs
+recAppend (a :+: as) bs = a :+: (as `recAppend` bs)
+
+sumAppend :: SumOptions t as -> SumOptions t bs -> SumOptions t (HV.Append as bs)
+sumAppend SOEmpty bs = bs
+sumAppend (a :|: as) bs = a :|: (as `sumAppend` bs)
+
 
 reqField :: FromJSON f => T.Text -> (t -> f) -> RecordField t f
 reqField jsonKey g =
@@ -63,27 +119,33 @@ sumOpt jsonKey p =
     , so_prism = p
     }
 
+(.->) :: T.Text -> Prism' t o -> SumOption t o
+jsonKey .-> p = sumOpt jsonKey p
+
 type RecordTypeSpec t flds = HighSpec t 'SpecRecord flds
 
 recSpec ::
-    T.Text -> Maybe T.Text -> HV.HVectElim flds t
-    -> RecordFields t flds
-    -> RecordTypeSpec t flds
+    (IsRecordSpec q, RContainer q ~ RecordFields)
+    => T.Text -> Maybe T.Text -> HV.HVectElim (RFields q) (RType q)
+    -> q
+    -> RecordTypeSpec (RType q) (RFields q)
 recSpec name mDesc mk fields =
     HighSpec
     { hs_name = name
     , hs_description = mDesc
-    , hs_bodySpec = BodySpecRecord $ RecordSpec (HV.uncurry mk) fields
+    , hs_bodySpec = BodySpecRecord $ RecordSpec (HV.uncurry mk) (compileRec fields)
     }
 
 type SumTypeSpec t flds = HighSpec t 'SpecSum flds
 
-sumSpec :: T.Text -> Maybe T.Text -> SumOptions t flds -> SumTypeSpec t flds
+sumSpec ::
+    (IsRecordSpec q, RContainer q ~ SumOptions)
+    => T.Text -> Maybe T.Text -> q -> SumTypeSpec (RType q) (RFields q)
 sumSpec name mDesc opts =
     HighSpec
     { hs_name = name
     , hs_description = mDesc
-    , hs_bodySpec = BodySpecSum $ SumSpec opts
+    , hs_bodySpec = BodySpecSum $ SumSpec (compileRec opts)
     }
 
 type EnumTypeSpec t flds = HighSpec t 'SpecEnum flds
@@ -103,17 +165,5 @@ enumOpt jsonKey p =
     , eo_prism = p
     }
 
-class SumMapping x where
-    type SumIn x
-    type SumOut x
-    (.->) :: T.Text -> Prism' (SumIn x) (SumOut x) -> x
-
-instance SumMapping (SumOption t o) where
-    type SumIn (SumOption t o) = t
-    type SumOut (SumOption t o) = o
-    jsonKey .-> p = sumOpt jsonKey p
-
-instance SumMapping (EnumOption t) where
-    type SumIn (EnumOption t) = t
-    type SumOut (EnumOption t) = ()
-    jsonKey .-> p = enumOpt jsonKey p
+(@->) :: T.Text -> Prism' t () -> EnumOption t
+jsonKey @-> p = enumOpt jsonKey p
