@@ -132,6 +132,39 @@ instance Arbitrary a => Arbitrary (ParamType a) where
     arbitrary =
         ParamType <$> arbitrary <*> (unSomeText <$> arbitrary)
 
+data SomeEnumType
+   = SomeEnumA
+   | SomeEnumB
+   | SomeEnumC
+   | SomeEnumD
+   deriving (Show, Eq, Typeable)
+
+makePrisms ''SomeEnumType
+
+someEnumSpec :: EnumTypeSpec SomeEnumType '[(), (), (), ()]
+someEnumSpec =
+    enumSpec "SomeSum" Nothing $
+    "a" @-> _SomeEnumA
+    :& "b" @-> _SomeEnumB
+    :& "c" @-> _SomeEnumC
+    :& "d" @-> _SomeEnumD
+
+instance ToJSON SomeEnumType where
+    toJSON = jsonSerializer someEnumSpec
+    toEncoding = jsonEncoder someEnumSpec
+
+instance FromJSON SomeEnumType where
+    parseJSON = jsonParser someEnumSpec
+
+instance Arbitrary SomeEnumType where
+    arbitrary =
+        oneof
+        [ pure SomeEnumA
+        , pure SomeEnumB
+        , pure SomeEnumC
+        , pure SomeEnumD
+        ]
+
 spec :: Spec
 spec =
     describe "Parser and Serialiser" $
@@ -144,8 +177,12 @@ spec =
            (eitherDecode . encode) t == Right (t :: SomeDummy)
        it "Handles arbitrary custom sum types correctly" $ property $ \t ->
            (eitherDecode . encode) t == Right (t :: SomeSumType)
+       it "Handles arbitrary custom enum types correctly" $ property $ \t ->
+           (eitherDecode . encode) t == Right (t :: SomeEnumType)
        it "Handles arbitrary custom parametrized types correctly" $ property $ \t ->
            (eitherDecode . encode) t == Right (t :: ParamType SomeSumType)
+       it "Handles arbitrary custom parametrized types correctly 2" $ property $ \t ->
+           (eitherDecode . encode) t == Right (t :: ParamType SomeEnumType)
        it "Handles nested types correctly" $
           do let nested = SomeNested [SomeNested [] Nothing] (Just $ SomeNested [] Nothing)
              eitherDecode (encode nested) `shouldBe` Right nested
