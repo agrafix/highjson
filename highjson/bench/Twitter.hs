@@ -23,11 +23,10 @@ data Metadata = Metadata {
     result_type :: Text
   } deriving (Eq, Show, Typeable, Data, Generic)
 
-metadataSpec :: HighSpec Metadata '[Text]
+metadataSpec :: RecordTypeSpec Metadata '[Text]
 metadataSpec =
     recSpec "MetaData" Nothing Metadata $
     "result_type" .= result_type
-    :+: RFEmpty
 
 instance FromJSON Metadata where
     parseJSON = jsonParser metadataSpec
@@ -49,12 +48,11 @@ data Geo = Geo {
   , coordinates :: (Double, Double)
   } deriving (Eq, Show, Typeable, Data, Generic)
 
-geoSpec :: HighSpec Geo '[Text, (Double, Double)]
+geoSpec :: RecordTypeSpec Geo '[Text, (Double, Double)]
 geoSpec =
     recSpec "Geo" Nothing Geo $
     "type_" .= type_
-    :+: "coordinates" .= coordinates
-    :+: RFEmpty
+    :& "coordinates" .= coordinates
 
 instance FromJSON Geo where
     parseJSON = jsonParser geoSpec
@@ -89,25 +87,24 @@ data Story = Story {
   , source            :: Text
   } deriving (Show, Typeable, Data, Generic)
 
-storySpec :: HighSpec Story '[Text, Text, Text, Text, Text, Metadata, Maybe Int64, Text, Int64,
+storySpec :: RecordTypeSpec Story '[Text, Text, Text, Text, Text, Metadata, Maybe Int64, Text, Int64,
                               Int64, Maybe Geo, Text, Maybe Text, Text]
 storySpec =
     recSpec "Story" Nothing Story $
     "from_user_id_str" .= from_user_id_str
-    :+: "profile_image_url" .= profile_image_url
-    :+: "created_at" .= created_at
-    :+: "from_user" .= from_user
-    :+: "id_str" .= id_str
-    :+: "metadata" .= metadata
-    :+: "to_user_id" .= to_user_id
-    :+: "text" .= text
-    :+: "id" .= id
-    :+: "from_user_id" .= from_user_id
-    :+: "geo" .= geo
-    :+: "iso_language_code" .= iso_language_code
-    :+: "to_user_id_str" .= to_user_id_str
-    :+: "source" .= source
-    :+: RFEmpty
+    :& "profile_image_url" .= profile_image_url
+    :& "created_at" .= created_at
+    :& "from_user" .= from_user
+    :& "id_str" .= id_str
+    :& "metadata" .= metadata
+    :& "to_user_id" .= to_user_id
+    :& "text" .= text
+    :& "id" .= id
+    :& "from_user_id" .= from_user_id
+    :& "geo" .= geo
+    :& "iso_language_code" .= iso_language_code
+    :& "to_user_id_str" .= to_user_id_str
+    :& "source" .= source
 
 instance FromJSON Story where
     parseJSON = jsonParser storySpec
@@ -150,22 +147,21 @@ data Result = Result {
   , query            :: Text
   } deriving (Show, Typeable, Data, Generic)
 
-resultSpec :: HighSpec Result '[[Story], Int64, Int64, Text, Text, Int, Int, Double, Text, Text,
+resultSpec :: RecordTypeSpec Result '[[Story], Int64, Int64, Text, Text, Int, Int, Double, Text, Text,
                                 Text]
 resultSpec =
     recSpec "Result" Nothing Result $
     "results" .= results
-    :+: "max_id" .= max_id
-    :+: "since_id" .= since_id
-    :+: "refresh_url" .= refresh_url
-    :+: "next_page" .= next_page
-    :+: "results_per_page" .= results_per_page
-    :+: "page" .= page
-    :+: "completed_in" .= completed_in
-    :+: "since_id_str" .= since_id_str
-    :+: "max_id_str" .= max_id_str
-    :+: "query" .= query
-    :+: RFEmpty
+    :& "max_id" .= max_id
+    :& "since_id" .= since_id
+    :& "refresh_url" .= refresh_url
+    :& "next_page" .= next_page
+    :& "results_per_page" .= results_per_page
+    :& "page" .= page
+    :& "completed_in" .= completed_in
+    :& "since_id_str" .= since_id_str
+    :& "max_id_str" .= max_id_str
+    :& "query" .= query
 
 instance FromJSON Result where
     parseJSON = jsonParser resultSpec
