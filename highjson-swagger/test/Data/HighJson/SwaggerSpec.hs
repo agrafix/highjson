@@ -10,6 +10,7 @@ import Data.HighJson
 import Data.HighJson.Swagger
 
 import Control.Lens.TH
+import Data.Proxy
 import Data.Swagger
 import Test.Hspec
 import Test.QuickCheck hiding (Success)
@@ -97,8 +98,8 @@ makePrisms ''SomeEnum
 someEnumSpec :: EnumTypeSpec SomeEnum '[(), ()]
 someEnumSpec =
     enumSpec "some enum" Nothing $
-    "int" @-> _SomeEnumA
-    :& "dummy" @-> _SomeEnumB
+    "a" @-> _SomeEnumA
+    :& "b" @-> _SomeEnumB
 
 instance ToJSON SomeEnum where
     toJSON = jsonSerializer someEnumSpec
@@ -114,6 +115,33 @@ instance Arbitrary SomeEnum where
         , pure SomeEnumB
         ]
 
+data BrokenEnum
+    = BEnumX
+    | BEnumY
+    deriving (Show, Eq)
+
+makePrisms ''BrokenEnum
+
+brokenEnumSpec :: EnumTypeSpec BrokenEnum '[(), ()]
+brokenEnumSpec =
+    enumSpec "broken enum" Nothing $
+    "x" @-> _BEnumX
+    :& "y" @-> _BEnumY
+
+instance ToJSON BrokenEnum where
+    toJSON = jsonSerializer brokenEnumSpec
+    toEncoding = jsonEncoder brokenEnumSpec
+
+instance ToSchema BrokenEnum where
+    declareNamedSchema _ = makeDeclareNamedSchema someEnumSpec (Proxy :: Proxy SomeEnum)
+
+instance Arbitrary BrokenEnum where
+    arbitrary =
+        oneof
+        [ pure BEnumX
+        , pure BEnumY
+        ]
+
 spec :: Spec
 spec =
     do it "should work for records" $
@@ -122,3 +150,5 @@ spec =
            property $ \(t :: SomeSum) -> validateToJSON t `shouldBe` []
        it "should work for enum types" $
            property $ \(t :: SomeEnum) -> validateToJSON t `shouldBe` []
+       it "should not work for bad schemas" $
+           property $ \(t :: BrokenEnum) -> validateToJSON t `shouldNotBe` []
