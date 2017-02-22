@@ -93,20 +93,21 @@ jsonSerializer hs val =
     case hs_bodySpec hs of
       BodySpecSum s -> object $ fst $ jsonSerSum s val
       BodySpecRecord r -> object $ fst $ jsonSerRec r val
-      BodySpecEnum e -> toJSON $ jsonSerEnum e val
+      BodySpecEnum e -> toJSON $ jsonSerEnum (hs_name hs) e val
 
 jsonEncoder :: AllHave ToJSON as => HighSpec a ty as -> a -> Encoding
 jsonEncoder hs val =
     case hs_bodySpec hs of
       BodySpecSum s -> pairs $ snd $ jsonSerSum s val
       BodySpecRecord r -> pairs $ snd $ jsonSerRec r val
-      BodySpecEnum e -> toEncoding $ jsonSerEnum e val
+      BodySpecEnum e -> toEncoding $ jsonSerEnum (hs_name hs) e val
 
-jsonSerEnum :: EnumSpec a -> a -> T.Text
-jsonSerEnum (EnumSpec opts) val =
+jsonSerEnum :: T.Text -> EnumSpec a -> a -> T.Text
+jsonSerEnum enumName (EnumSpec opts) val =
     loop opts
     where
-      loop [] = error "Empty enum spec"
+      loop [] =
+          error $ "Empty enum spec for " <> T.unpack enumName <> ". Did you mention all cases?"
       loop (x : xs) =
           case val ^? eo_prism x of
             Just () -> eo_jsonKey x
