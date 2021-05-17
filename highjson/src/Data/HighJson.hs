@@ -46,9 +46,11 @@ data a :& b
     deriving (Typeable, Eq, Show, Functor, Traversable, Foldable, Bounded)
 infixr 8 :&
 
+instance (Semigroup a, Semigroup b) => Semigroup (a :& b) where
+    (a :& b) <> (a' :& b') = (a <> a') :& (b <> b')
+
 instance (Monoid a, Monoid b) => Monoid (a :& b) where
     mempty = mempty :& mempty
-    (a :& b) `mappend` (a' :& b') = (a `mappend` a') :& (b `mappend` b')
 
 -- | A monoidal type class that respects type level lists associated to the bodies
 class CombinableContainer t where

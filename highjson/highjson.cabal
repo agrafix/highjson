@@ -1,5 +1,5 @@
 name:                highjson
-version:             0.4.0.0
+version:             0.5.0.0
 synopsis:            Spec based JSON parsing/serialisation
 description:         Low boilerplate, easy to use and very fast JSON serialisation and parsing without generics or TemplateHaskell
 homepage:            https://github.com/agrafix/highjson
@@ -8,7 +8,7 @@ license:             MIT
 license-file:        LICENSE
 author:              Alexander Thiemann <mail@athiemann.net>
 maintainer:          Alexander Thiemann <mail@athiemann.net>
-copyright:           (c) 2015 - 2017 Alexander Thiemann
+copyright:           (c) 2015 - 2021 Alexander Thiemann
 category:            Text, Web, JSON
 build-type:          Simple
 stability:           experimental

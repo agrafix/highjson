@@ -18,7 +18,6 @@ import Data.HVect (AllHave)
 import Data.HashMap.Strict.InsOrd (InsOrdHashMap)
 import Data.HighJson
 import Data.Kind
-import Data.Monoid
 import Data.Proxy
 import Data.Swagger
 import Data.Swagger.Declare
@@ -67,7 +66,7 @@ makeDeclareNamedSchema' spec exVal _ =
           do (props, reqs) <- computeRecProperties r
              pure $ NamedSchema (Just $ hs_name spec) $
                  mempty
-                 & type_ .~ SwaggerObject
+                 & type_ ?~ SwaggerObject
                  & description .~ hs_description spec
                  & properties .~ props
                  & required .~ reqs
@@ -78,7 +77,7 @@ makeDeclareNamedSchema' spec exVal _ =
           do (props, reqs) <- computeSumProperties r
              pure $ NamedSchema (Just $ hs_name spec) $
                  mempty
-                 & type_ .~ SwaggerObject
+                 & type_ ?~ SwaggerObject
                  & description .~ hs_description spec
                  & properties .~ props
                  & required .~ reqs
@@ -88,11 +87,11 @@ makeDeclareNamedSchema' spec exVal _ =
       BodySpecEnum r ->
           let ps =
                   mempty
-                  & type_ .~ SwaggerString
+                  & type_ ?~ SwaggerString
                   & enum_ .~ Just (map (toJSON . eo_jsonKey) (es_options r))
           in pure $ NamedSchema (Just $ hs_name spec) $
              mempty
-             & type_ .~ SwaggerString
+             & type_ ?~ SwaggerString
              & description .~ hs_description spec
              & example .~ fmap (jsonSerializer spec) exVal
              & paramSchema .~ ps
@@ -141,6 +140,6 @@ computeRecProperties fs =
                            IOM.singleton (rf_jsonKey key) fieldSchema
                        reqs' =
                            if not (rf_optional key)
-                           then (rf_jsonKey key : reqs)
+                           then rf_jsonKey key : reqs
                            else reqs
                    go rest (fld <> props, reqs')

@@ -16,11 +16,9 @@ where
 
 import Control.Applicative
 import Control.Lens hiding ((.=))
-import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types hiding (parse)
 import Data.HVect
-import Data.Monoid
 import qualified Data.Text as T
 
 data SpecType
@@ -143,7 +141,7 @@ jsonSerRec (RecordSpec _ rflds) val =
             f :+: fs ->
                 let pair = (rf_jsonKey f, toJSON $ rf_get f val)
                     encoder = rf_jsonKey f .= rf_get f val
-                in loop fs ((pair : ps), encoder <> encoding)
+                in loop fs (pair : ps, encoder <> encoding)
 
 jsonParser :: AllHave FromJSON as => HighSpec a ty as -> Value -> Parser a
 jsonParser hs =
@@ -182,11 +180,11 @@ jsonParserSum name (SumSpec sopts) obj =
                 "Failed to parse as " ++ T.unpack name
             o :|: os ->
                 let parse =
-                        liftM (so_prism o #) $ obj .: so_jsonKey o
+                        fmap (so_prism o #) $ obj .: so_jsonKey o
                 in parse <|> loop os
 
 
-jsonParserEnum :: Monad m => T.Text -> EnumSpec a -> T.Text -> m a
+jsonParserEnum :: (MonadFail m, Monad m) => T.Text -> EnumSpec a -> T.Text -> m a
 jsonParserEnum name (EnumSpec sopts) t =
     loop sopts
     where

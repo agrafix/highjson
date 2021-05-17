@@ -1,0 +1,18 @@
+cradle:
+  stack:
+    stackYaml: "stack.yaml"
+    components:
+      - path: "./highjson/src"
+        component: "highjson:lib"
+      - path: "./highjson/test"
+        component: "highjson:highjson-tests"
+      - path: "./highjson/bench"
+        component: "highjson:highjson-benchmarks"
+      - path: "./highjson-swagger"
+        component: "highjson-swagger:lib"
+      - path: "./highjson-swagger/test"
+        component: "highjson-swagger:highjson-swagger-tests"
+      - path: "./highjson-th"
+        component: "highjson-th:lib"
+      - path: "./highjson-th/test"
+        component: "highjson-th:highjson-th-tests"
