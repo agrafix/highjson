@@ -1,8 +1,6 @@
 highjson
 =====
 
-[![Build Status](https://travis-ci.org/agrafix/highjson.svg)](https://travis-ci.org/agrafix/highjson)
-
 [![Hackage Deps](https://img.shields.io/hackage-deps/v/highjson.svg)](http://packdeps.haskellers.com/reverse/highjson)
 
 ## Intro
@@ -10,7 +8,7 @@ highjson
 Hackage: [highjson](http://hackage.haskell.org/package/highjson)
 
 Low boilerplate, easy to use and very fast Haskell JSON serialisation and
-parsing without the help of TemplateHaskell or Generics built on top of [aeson](http://hackage.haskell.org/package/aeson).
+parsing without the help of TemplateHaskell or Generics built on top of [aeson](http://hackage.haskell.org/package/aeson). The optional package `highjson-swagger` will also help automatically generating a OpenAPI schema.
 
 ## Usage
 
